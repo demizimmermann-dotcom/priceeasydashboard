@@ -170,33 +170,39 @@ var accessToken = null;
 // ═══════════════════════════════════════════
 //  AUTH
 // ═══════════════════════════════════════════
-document.getElementById('loginBtn').addEventListener('click', function() {
-  msalInstance.loginPopup(loginRequest)
-    .then(function(resp) {
-      return msalInstance.acquireTokenSilent({ scopes: loginRequest.scopes, account: resp.account });
-    })
-    .then(function(tokenResp) {
-      accessToken = tokenResp.accessToken;
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
-      fetchData();
-      startAutoRefresh();
-    })
-    .catch(function(err) {
-      console.error('Login error:', err);
-      alert('Sign-in failed. Please try again.\n\nIf this is the first time, you may need to register the app in Azure AD. See the setup guide.');
-    });
-});
-
-// Check if already logged in
+// Handle redirect response on page load
 msalInstance.handleRedirectPromise().then(function(resp) {
   if (resp) {
+    // Returned from redirect login
     accessToken = resp.accessToken;
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
     fetchData();
     startAutoRefresh();
+  } else {
+    // Check if user is already signed in
+    var accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      msalInstance.acquireTokenSilent({ scopes: loginRequest.scopes, account: accounts[0] })
+        .then(function(tokenResp) {
+          accessToken = tokenResp.accessToken;
+          document.getElementById('loginScreen').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+          fetchData();
+          startAutoRefresh();
+        })
+        .catch(function(err) {
+          console.log('Silent token failed, user needs to sign in');
+        });
+    }
   }
+}).catch(function(err) {
+  console.error('Redirect error:', err);
+});
+
+// Login button uses redirect (no popups!)
+document.getElementById('loginBtn').addEventListener('click', function() {
+  msalInstance.loginRedirect(loginRequest);
 });
 
 // ═══════════════════════════════════════════
