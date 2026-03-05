@@ -589,7 +589,7 @@ function rCS() {
     if (c.upsellScore >= 7) highUpsell++;
   });
   var ragCounts = {R:0,A:0,G:0};
-  C.forEach(function(c){ var r=c.rag?c.rag[0].toUpperCase():''; if(ragCounts[r]!==undefined)ragCounts[r]++; });
+  C.forEach(function(c){ var r=c.rag?(c.rag+'')[0].toUpperCase():''; if(ragCounts[r]!==undefined)ragCounts[r]++; });
   var cards = [
     {l:'Total Customers', v:C.length, s:'Active in tracker', a:'cyan'},
     {l:'MRR Jan 2026', v:$(totalMrr), s:'Total monthly recurring', a:'green'},
@@ -619,9 +619,9 @@ function rCCharts() {
   var ragMap = {Red:0,Amber:0,Green:0};
   C.forEach(function(c) {
     var r=c.rag||'';
-    if(r.toLowerCase().includes('red')||r==='R')ragMap.Red++;
-    else if(r.toLowerCase().includes('amber')||r==='A')ragMap.Amber++;
-    else if(r.toLowerCase().includes('green')||r==='G')ragMap.Green++;
+    var rs=String(r||'').toLowerCase(); if(rs.includes('red')||r==='R')ragMap.Red++;
+    else if(rs.includes('amber')||r==='A')ragMap.Amber++;
+    else if(rs.includes('green')||r==='G')ragMap.Green++;
   });
   var ragMax = Math.max(ragMap.Red,ragMap.Amber,ragMap.Green,1);
   var ragHtml = [
@@ -692,8 +692,8 @@ function rCT() {
   document.getElementById('cTb').innerHTML = filtered.slice(0,80).map(function(c){
     var churnCol = c.churnScore>=7?'red':c.churnScore>=4?'amber':'green';
     var upCol = c.upsellScore>=7?'violet':c.upsellScore>=4?'cyan':'blue';
-    var ragCls = c.rag?(c.rag.toLowerCase().includes('red')||c.rag==='R'?'rag-R':c.rag.toLowerCase().includes('amber')||c.rag==='A'?'rag-A':'rag-G'):'';
-    var healthCol = c.health==='Green'?'green':c.health==='Red'?'red':c.health==='Yellow'?'amber':'violet';
+    var ragStr = c.rag ? String(c.rag) : ''; var ragCls = ragStr?(ragStr.toLowerCase().includes('red')||ragStr==='R'?'rag-R':ragStr.toLowerCase().includes('amber')||ragStr==='A'?'rag-A':'rag-G'):'';
+    var hStr=String(c.health||''); var healthCol = hStr==='Green'?'green':hStr==='Red'?'red':hStr==='Yellow'?'amber':'violet';
     return '<tr data-cid="'+c.custId+'">' +
       '<td>'+c.name+'</td>' +
       '<td>'+c.csm+'</td>' +
