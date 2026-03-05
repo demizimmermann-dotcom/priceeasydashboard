@@ -242,7 +242,7 @@ var msalConfig = {
 };
 
 var loginRequest = { scopes: ["https://priceeasy1.sharepoint.com/.default"] };
-var graphScopes = ["https://graph.microsoft.com/Files.Read.All", "https://graph.microsoft.com/Sites.Read.All"];
+var graphScopes = ["https://graph.microsoft.com/Files.Read", "https://graph.microsoft.com/Sites.Read"];
 var msalInstance = new msal.PublicClientApplication(msalConfig);
 var accessToken = null;
 
