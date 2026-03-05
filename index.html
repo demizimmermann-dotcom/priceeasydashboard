@@ -338,57 +338,61 @@ function fetchData() {
 // ═══════════════════════════════════════════════════════════
 // File UniqueId from SharePoint embed link
 var CUST_FILE_GUID = '6b85d56a-1ad8-4dac-a1b4-6466ca6a4f80';
+// Confirmed path from search results
+var CUST_KNOWN_PATH = '/Customer Master/Customer Master and Tracker (All Teams).xlsx';
 
 function fetchCustomerData() {
   if (!accessToken) return;
-  // Run search diagnostic first to find the file path, then fetch
   findFilePathViaSPSearch();
 }
 
 function findFilePathViaSPSearch() {
+  // Use confirmed path found via search
+  if (CUST_KNOWN_PATH) {
+    var site = CUST_KNOWN_PATH.indexOf('/sites/') === 0
+      ? 'https://priceeasy1.sharepoint.com' + CUST_KNOWN_PATH.substring(0, CUST_KNOWN_PATH.indexOf('/', 8))
+      : 'https://priceeasy1.sharepoint.com';
+    fetchCustomerViaSP(CUST_KNOWN_PATH, site);
+    return;
+  }
   var h = {
     'Accept': 'application/json;odata=verbose',
     'Authorization': 'Bearer ' + accessToken
   };
   var searchUrl = "https://priceeasy1.sharepoint.com/_api/search/query?querytext='Customer+Master+and+Tracker'&selectproperties='Path,Title,FileExtension'&rowlimit=10";
-  
+
   fetch(searchUrl, { headers: h })
     .then(function(r) { return r.json(); })
     .then(function(d) {
       var rows = d.d.query.PrimaryQueryResult.RelevantResults.Table.Rows.results;
-      var paths = rows.map(function(r) {
-        var cells = r.Cells.results;
-        var path = cells.find(function(c){return c.Key==='Path';});
-        var ext = cells.find(function(c){return c.Key==='FileExtension';});
-        return (path ? path.Value : '') + ' [' + (ext ? ext.Value : '') + ']';
-      }).filter(function(p){ return p.toLowerCase().includes('xlsx') || p.toLowerCase().includes('customer'); });
-      
       console.log('=== FILE SEARCH RESULTS ===');
-      paths.forEach(function(p){ console.log(p); });
-      setCustStatus(false, 'Check console for file path — copy it here!');
-      
-      // Also try fetching with the found path if xlsx found
-      var xlsxPath = rows.map(function(r){
+      rows.forEach(function(r) {
         var cells = r.Cells.results;
-        var path = cells.find(function(c){return c.Key==='Path';});
+        var path = cells.find(function(c) { return c.Key === 'Path'; });
+        if (path) console.log(path.Value);
+      });
+
+      var xlsxPath = rows.map(function(r) {
+        var cells = r.Cells.results;
+        var path = cells.find(function(c) { return c.Key === 'Path'; });
         return path ? path.Value : '';
-      }).find(function(p){ return p.toLowerCase().includes('customer master') && p.toLowerCase().includes('xlsx'); });
-      
+      }).find(function(p) {
+        return p.toLowerCase().includes('customer master') && p.toLowerCase().includes('xlsx');
+      });
+
       if (xlsxPath) {
-        console.log('=== FOUND XLSX AT:', xlsxPath, '===');
-        // Extract server-relative URL from full URL
+        console.log('=== AUTO-USING PATH:', xlsxPath, '===');
         var serverRelUrl = xlsxPath.replace('https://priceeasy1.sharepoint.com', '');
         var site = serverRelUrl.indexOf('/sites/') === 0
           ? 'https://priceeasy1.sharepoint.com' + serverRelUrl.substring(0, serverRelUrl.indexOf('/', 8))
           : 'https://priceeasy1.sharepoint.com';
         fetchCustomerViaSP(serverRelUrl, site);
       } else {
-        fetchCustomerViaSP();
+        fetchCustomerViaSP(null, null);
       }
     })
     .catch(function() {
-      // Search failed, fall back to path scanning
-      fetchCustomerViaSP();
+      fetchCustomerViaSP(null, null);
     });
 }
 
@@ -398,7 +402,6 @@ function fetchCustomerViaSP(knownPath, knownSite) {
     'Authorization': 'Bearer ' + accessToken
   };
 
-  // If we already know the path from search, use it directly
   if (knownPath) {
     return readExcelViaSpExcel(knownPath, knownSite || 'https://priceeasy1.sharepoint.com')
       .catch(function(e) {
@@ -419,37 +422,42 @@ function fetchCustomerViaSP(knownPath, knownSite) {
     "/General/" + fileName
   ];
 
-  function tryPath(idx) {
-    if (idx >= candidatePaths.length) {
+  function tryPath(i) {
+    if (i >= candidatePaths.length) {
+      // Last resort: GUID lookup
       var guidUrl = "https://priceeasy1.sharepoint.com/_api/web/GetFileById(guid'" + CUST_FILE_GUID + "')?$select=ServerRelativeUrl";
       return fetch(guidUrl, { headers: h })
-        .then(function(r) { if (!r.ok) throw new Error('File not found in any known location (404 on all paths + GUID)'); return r.json(); })
+        .then(function(r) {
+          if (!r.ok) throw new Error('File not found anywhere (tried ' + candidatePaths.length + ' paths + GUID). Status: ' + r.status);
+          return r.json();
+        })
         .then(function(d) {
           var p = d.d ? d.d.ServerRelativeUrl : d.ServerRelativeUrl;
           if (!p) throw new Error('GUID lookup returned no path');
-          var site = (p.indexOf('/sites/') === 0)
+          var site = p.indexOf('/sites/') === 0
             ? 'https://priceeasy1.sharepoint.com' + p.substring(0, p.indexOf('/', 8))
             : 'https://priceeasy1.sharepoint.com';
+          console.log('GUID lookup found path:', p);
           return readExcelViaSpExcel(p, site);
         });
     }
-    var path = candidatePaths[idx];
-    var site = (path.indexOf('/sites/') === 0)
+    var path = candidatePaths[i];
+    var site = path.indexOf('/sites/') === 0
       ? 'https://priceeasy1.sharepoint.com' + path.substring(0, path.indexOf('/', 8))
       : 'https://priceeasy1.sharepoint.com';
     var checkUrl = site + "/_api/web/GetFileByServerRelativeUrl('" + path.replace(/'/g, "''") + "')?$select=ServerRelativeUrl,Exists";
-    console.log('Trying path:', path);
+    console.log('Trying:', path);
     return fetch(checkUrl, { headers: h })
       .then(function(r) {
-        if (!r.ok) return tryPath(idx + 1);
+        if (!r.ok) return tryPath(i + 1);
         return r.json().then(function(d) {
           var info = d.d || d;
-          if (!info.Exists) return tryPath(idx + 1);
-          console.log('Found file at:', path);
+          if (!info.Exists) return tryPath(i + 1);
+          console.log('Found at:', path);
           return readExcelViaSpExcel(path, site);
         });
       })
-      .catch(function() { return tryPath(idx + 1); });
+      .catch(function() { return tryPath(i + 1); });
   }
 
   tryPath(0).catch(function(e) {
@@ -460,65 +468,63 @@ function fetchCustomerViaSP(knownPath, knownSite) {
 }
 
 function readExcelViaSpExcel(serverRelUrl, fileSite) {
-  fileSite = fileSite || SITE;
-  // Use SharePoint Excel REST API to read sheet data
-  // This uses the same SharePoint token — no Graph/admin consent needed
-  var h = {
-    'Accept': 'application/json;odata=verbose',
-    'Authorization': 'Bearer ' + accessToken
-  };
+  fileSite = fileSite || 'https://priceeasy1.sharepoint.com';
+  // Download the Excel file as binary and parse with SheetJS
+  var downloadUrl = fileSite + "/_api/web/GetFileByServerRelativeUrl('" +
+    serverRelUrl.replace(/'/g, "''") + "')/$value";
 
-  // Try multiple common sheet names
-  var sheetNames = ['All Teams', 'Sheet1', 'Customer Master', 'Customers', 'Data'];
-  var encoded = encodeURIComponent(serverRelUrl);
-
-  function trySheet(idx) {
-    if (idx >= sheetNames.length) {
-      var sheetsUrl = fileSite + "/_api/v2.1/drives/root:/getByUrl('" + encoded + "')/workbook/worksheets";
-      return fetch(sheetsUrl, { headers: h })
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-          var name = d.value && d.value[0] ? d.value[0].name : 'Sheet1';
-          return fetchSheetRange(serverRelUrl, name, fileSite);
-        });
+  return fetch(downloadUrl, {
+    headers: { 'Authorization': 'Bearer ' + accessToken }
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('File download failed: ' + r.status);
+    return r.arrayBuffer();
+  })
+  .then(function(buf) {
+    // Load SheetJS dynamically if not present
+    if (typeof XLSX === 'undefined') {
+      return loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')
+        .then(function() { return parseExcelBuffer(buf); });
     }
-    return fetchSheetRange(serverRelUrl, sheetNames[idx], fileSite)
-      .catch(function() { return trySheet(idx + 1); });
-  }
-
-  return trySheet(0)
-    .then(function(values) {
-      if (!values || values.length < 2) throw new Error('No data found in workbook');
-      var hdrs = values[0].map(function(h) { return (h || '').toString().trim(); });
-      C = [];
-      for (var i = 1; i < values.length; i++) {
-        var row = values[i];
-        var obj = {};
-        hdrs.forEach(function(h, idx) { obj[h] = row[idx] !== undefined ? row[idx] : ''; });
-        if (obj['CUSTOMER_NAME'] || obj['QB_ID']) C.push(parseCustRow(obj));
-      }
-      setCustStatus(true, C.length + ' customers');
-      showCustContent();
-    })
-    .catch(function(e) {
-      console.error('Customer fetch error:', e);
-      setCustStatus(false, 'Customers: ' + e.message);
-      showCustError(e.message);
-    });
+    return parseExcelBuffer(buf);
+  })
+  .then(function(values) {
+    if (!values || values.length < 2) throw new Error('No data found in workbook');
+    var hdrs = values[0].map(function(h) { return (h || '').toString().trim(); });
+    C = [];
+    for (var i = 1; i < values.length; i++) {
+      var row = values[i];
+      var obj = {};
+      hdrs.forEach(function(h, idx) { obj[h] = row[idx] !== undefined ? row[idx] : ''; });
+      if (obj['CUSTOMER_NAME'] || obj['QB_ID']) C.push(parseCustRow(obj));
+    }
+    setCustStatus(true, C.length + ' customers');
+    showCustContent();
+  })
+  .catch(function(e) {
+    console.error('Customer fetch error:', e);
+    setCustStatus(false, 'Customers: ' + e.message);
+    showCustError(e.message);
+  });
 }
 
-function fetchSheetRange(serverRelUrl, sheetName, fileSite) {
-  var h = {
-    'Accept': 'application/json;odata=verbose',
-    'Authorization': 'Bearer ' + accessToken
-  };
-  fileSite = fileSite || 'https://priceeasy1.sharepoint.com';
-  var url = fileSite + "/_api/v2.1/drives/root:/getByUrl('" +
-    encodeURIComponent(serverRelUrl) + "'):/workbook/worksheets('" +
-    encodeURIComponent(sheetName) + "')/usedRange";
-  return fetch(url, { headers: h })
-    .then(function(r) { if (!r.ok) throw new Error('Sheet ' + sheetName + ' failed: ' + r.status); return r.json(); })
-    .then(function(d) { return d.values || (d.d && d.d.values); });
+function loadScript(src) {
+  return new Promise(function(resolve, reject) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+function parseExcelBuffer(buf) {
+  var wb = XLSX.read(buf, { type: 'array' });
+  var sheetName = wb.SheetNames[0];
+  console.log('Excel sheets found:', wb.SheetNames);
+  var ws = wb.Sheets[sheetName];
+  var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  return rows;
 }
 
 function parseCustRow(r) {
