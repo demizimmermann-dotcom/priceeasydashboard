@@ -336,90 +336,99 @@ function fetchData() {
 // Uses SharePoint REST API to read Excel file via /_api/web/GetFileByServerRelativeUrl
 // then reads table rows using /_api/web/lists approach on the workbook
 // ═══════════════════════════════════════════════════════════
+// File UniqueId from SharePoint embed link
+var CUST_FILE_GUID = '6b85d56a-1ad8-4dac-a1b4-6466ca6a4f80';
+
 function fetchCustomerData() {
   if (!accessToken) return;
-
-  // Use SharePoint Excel REST API to read the workbook
-  // Endpoint: /_api/v2.1/drives/{driveId}/root:/{path}:/workbook/worksheets/{sheet}/usedRange
-  // We'll use the simpler SharePoint Excel Services approach first, then fallback to Graph
-  fetchCustomerViaGraph();
+  fetchCustomerViaSP();
 }
 
-function fetchCustomerViaGraph() {
-  var accounts = msalInstance.getAllAccounts();
-  if (!accounts.length) { showCustError('No signed-in account found'); return; }
+function fetchCustomerViaSP() {
+  // Use SharePoint REST API with the file's UniqueId — no Graph needed
+  // First get the file's server-relative URL using the UniqueId
+  var h = {
+    'Accept': 'application/json;odata=verbose',
+    'Authorization': 'Bearer ' + accessToken
+  };
 
-  // Try silent first — works if Graph scopes already consented
-  msalInstance.acquireTokenSilent({ scopes: graphScopes, account: accounts[0] })
-    .then(function(tokenResp) { doGraphFetch(tokenResp.accessToken); })
-    .catch(function() {
-      // Need interactive consent for Graph scopes — redirect
-      sessionStorage.setItem('needsCustFetch', '1');
-      msalInstance.acquireTokenRedirect({ scopes: graphScopes, account: accounts[0] });
-    });
-}
+  // Get file by UniqueId to find its server-relative URL
+  var fileUrl = SITE + "/_api/web/GetFileById(guid'" + CUST_FILE_GUID + "')?$select=ServerRelativeUrl,Name";
 
-function doGraphFetch(graphToken) {
-  var h = { 'Authorization': 'Bearer ' + graphToken, 'Accept': 'application/json' };
-  var graphSite = 'https://graph.microsoft.com/v1.0/sites/priceeasy1.sharepoint.com:/sites/AccountingFinance';
-
-  fetch(graphSite, { headers: h })
-    .then(function(r) { if (!r.ok) throw new Error('Graph site lookup failed: ' + r.status); return r.json(); })
-    .then(function(site) {
-      // Step 2: Find the file in the drive
-      var driveUrl = 'https://graph.microsoft.com/v1.0/sites/' + site.id + '/drive/root:/Customer Master and Tracker (All Teams).xlsx';
-      return fetch(driveUrl, { headers: h }).then(function(r) {
-        if (!r.ok) throw new Error('File not found at root. Try subfolder. Status: ' + r.status);
-        return r.json();
-      }).then(function(file) {
-        return { siteId: site.id, driveItemId: file.id };
-      }).catch(function() {
-        // Try Shared Documents folder
-        var driveUrl2 = 'https://graph.microsoft.com/v1.0/sites/' + site.id + '/drive/root:/Shared Documents/Customer Master and Tracker (All Teams).xlsx';
-        return fetch(driveUrl2, { headers: h }).then(function(r) {
-          if (!r.ok) throw new Error('File not found in Shared Documents. Status: ' + r.status);
-          return r.json();
-        }).then(function(file) {
-          return { siteId: site.id, driveItemId: file.id };
-        });
-      });
-    })
-    .then(function(info) {
-      // Step 3: Read worksheet used range
-      var rangeUrl = 'https://graph.microsoft.com/v1.0/sites/' + info.siteId + '/drive/items/' + info.driveItemId + '/workbook/worksheets/Sheet1/usedRange';
-      return fetch(rangeUrl, { headers: h }).then(function(r) {
-        if (!r.ok) {
-          // Try getting available sheets first
-          var sheetsUrl = 'https://graph.microsoft.com/v1.0/sites/' + info.siteId + '/drive/items/' + info.driveItemId + '/workbook/worksheets';
-          return fetch(sheetsUrl, { headers: h }).then(function(sr) { return sr.json(); }).then(function(sheetsData) {
-            var sheetName = (sheetsData.value && sheetsData.value.length > 0) ? sheetsData.value[0].name : 'Sheet1';
-            var rangeUrl2 = 'https://graph.microsoft.com/v1.0/sites/' + info.siteId + '/drive/items/' + info.driveItemId + '/workbook/worksheets/' + encodeURIComponent(sheetName) + '/usedRange';
-            return fetch(rangeUrl2, { headers: h }).then(function(r2) { if (!r2.ok) throw new Error('Range fetch failed: ' + r2.status); return r2.json(); });
-          });
-        }
-        return r.json();
-      });
-    })
-    .then(function(rangeData) {
-      var values = rangeData.values;
-      if (!values || values.length < 2) throw new Error('No data in workbook range');
-      var headers = values[0].map(function(h) { return (h || '').toString().trim(); });
-      C = [];
-      for (var i = 1; i < values.length; i++) {
-        var row = values[i];
-        var obj = {};
-        headers.forEach(function(h, idx) { obj[h] = row[idx] !== undefined ? row[idx] : ''; });
-        if (obj['CUSTOMER_NAME'] || obj['QB_ID']) C.push(parseCustRow(obj));
-      }
-      setCustStatus(true, C.length + ' customers');
-      showCustContent();
-      if (curTab === 'customers') renderCustomers();
+  fetch(fileUrl, { headers: h })
+    .then(function(r) { if (!r.ok) throw new Error('File lookup failed: ' + r.status); return r.json(); })
+    .then(function(fileData) {
+      var serverRelUrl = fileData.d ? fileData.d.ServerRelativeUrl : fileData.ServerRelativeUrl;
+      if (!serverRelUrl) throw new Error('Could not get file path from SharePoint');
+      return readExcelViaSpExcel(serverRelUrl);
     })
     .catch(function(e) {
       console.error('Customer fetch error:', e);
       setCustStatus(false, 'Customers: ' + e.message);
       showCustError(e.message);
     });
+}
+
+function readExcelViaSpExcel(serverRelUrl) {
+  // Use SharePoint Excel REST API to read sheet data
+  // This uses the same SharePoint token — no Graph/admin consent needed
+  var h = {
+    'Accept': 'application/json;odata=verbose',
+    'Authorization': 'Bearer ' + accessToken
+  };
+
+  // Try multiple common sheet names
+  var sheetNames = ['All Teams', 'Sheet1', 'Customer Master', 'Customers', 'Data'];
+  var encoded = encodeURIComponent(serverRelUrl);
+
+  function trySheet(idx) {
+    if (idx >= sheetNames.length) {
+      // Fall back: get list of sheets first
+      var sheetsUrl = SITE + "/_api/v2.1/drives/root:/getByUrl('" + encoded + "')/workbook/worksheets";
+      return fetch(sheetsUrl, { headers: h })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          var name = d.value && d.value[0] ? d.value[0].name : 'Sheet1';
+          return fetchSheetRange(serverRelUrl, name);
+        });
+    }
+    return fetchSheetRange(serverRelUrl, sheetNames[idx])
+      .catch(function() { return trySheet(idx + 1); });
+  }
+
+  return trySheet(0)
+    .then(function(values) {
+      if (!values || values.length < 2) throw new Error('No data found in workbook');
+      var hdrs = values[0].map(function(h) { return (h || '').toString().trim(); });
+      C = [];
+      for (var i = 1; i < values.length; i++) {
+        var row = values[i];
+        var obj = {};
+        hdrs.forEach(function(h, idx) { obj[h] = row[idx] !== undefined ? row[idx] : ''; });
+        if (obj['CUSTOMER_NAME'] || obj['QB_ID']) C.push(parseCustRow(obj));
+      }
+      setCustStatus(true, C.length + ' customers');
+      showCustContent();
+    })
+    .catch(function(e) {
+      console.error('Customer fetch error:', e);
+      setCustStatus(false, 'Customers: ' + e.message);
+      showCustError(e.message);
+    });
+}
+
+function fetchSheetRange(serverRelUrl, sheetName) {
+  var h = {
+    'Accept': 'application/json;odata=verbose',
+    'Authorization': 'Bearer ' + accessToken
+  };
+  // SharePoint Excel Services REST endpoint
+  var url = SITE + "/_api/v2.1/drives/root:/getByUrl('" +
+    encodeURIComponent(serverRelUrl) + "'):/workbook/worksheets('" +
+    encodeURIComponent(sheetName) + "')/usedRange";
+  return fetch(url, { headers: h })
+    .then(function(r) { if (!r.ok) throw new Error('Sheet ' + sheetName + ' failed: ' + r.status); return r.json(); })
+    .then(function(d) { return d.values || (d.d && d.d.values); });
 }
 
 function parseCustRow(r) {
