@@ -421,7 +421,7 @@ function fetchCustomerViaSP(knownPath, knownSite) {
 
   function tryPath(idx) {
     if (idx >= candidatePaths.length) {
-      var guidUrl = 'https://priceeasy1.sharepoint.com/_api/web/GetFileById(guid'' + CUST_FILE_GUID + '')?$select=ServerRelativeUrl';
+      var guidUrl = "https://priceeasy1.sharepoint.com/_api/web/GetFileById(guid'" + CUST_FILE_GUID + "')?$select=ServerRelativeUrl";
       return fetch(guidUrl, { headers: h })
         .then(function(r) { if (!r.ok) throw new Error('File not found in any known location (404 on all paths + GUID)'); return r.json(); })
         .then(function(d) {
@@ -474,16 +474,15 @@ function readExcelViaSpExcel(serverRelUrl, fileSite) {
 
   function trySheet(idx) {
     if (idx >= sheetNames.length) {
-      // Fall back: get list of sheets first
       var sheetsUrl = fileSite + "/_api/v2.1/drives/root:/getByUrl('" + encoded + "')/workbook/worksheets";
       return fetch(sheetsUrl, { headers: h })
         .then(function(r) { return r.json(); })
         .then(function(d) {
           var name = d.value && d.value[0] ? d.value[0].name : 'Sheet1';
-          return fetchSheetRange(serverRelUrl, name);
+          return fetchSheetRange(serverRelUrl, name, fileSite);
         });
     }
-    return fetchSheetRange(serverRelUrl, sheetNames[idx])
+    return fetchSheetRange(serverRelUrl, sheetNames[idx], fileSite)
       .catch(function() { return trySheet(idx + 1); });
   }
 
@@ -508,12 +507,12 @@ function readExcelViaSpExcel(serverRelUrl, fileSite) {
     });
 }
 
-function fetchSheetRange(serverRelUrl, sheetName) {
+function fetchSheetRange(serverRelUrl, sheetName, fileSite) {
   var h = {
     'Accept': 'application/json;odata=verbose',
     'Authorization': 'Bearer ' + accessToken
   };
-  // SharePoint Excel Services REST endpoint
+  fileSite = fileSite || 'https://priceeasy1.sharepoint.com';
   var url = fileSite + "/_api/v2.1/drives/root:/getByUrl('" +
     encodeURIComponent(serverRelUrl) + "'):/workbook/worksheets('" +
     encodeURIComponent(sheetName) + "')/usedRange";
