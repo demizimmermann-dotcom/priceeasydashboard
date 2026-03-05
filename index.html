@@ -21,6 +21,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .banner code{padding:2px 8px;border-radius:4px;font-size:12px}
 .banner code.ok{background:rgba(52,211,153,.15);color:var(--green)}
 .banner code.err{background:rgba(239,68,68,.15);color:var(--red)}
+.banner code.warn{background:rgba(251,191,36,.15);color:var(--amber)}
 .hdr{padding:28px 40px 16px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px}
 .hdr h1{font-family:'Fraunces',serif;font-size:26px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(135deg,var(--t1),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .hdr p{color:var(--t2);font-size:13px;margin-top:4px}
@@ -30,8 +31,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .rbtn.spin svg{animation:sp 1s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 .ts{font-size:12px;color:var(--t3)}
-.tabs{display:flex;margin:0 40px;border-bottom:1px solid var(--bdr)}
-.tab{padding:12px 24px;font-size:14px;font-weight:600;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;user-select:none}
+.tabs{display:flex;margin:0 40px;border-bottom:1px solid var(--bdr);overflow-x:auto}
+.tab{padding:12px 24px;font-size:14px;font-weight:600;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;user-select:none;white-space:nowrap}
 .tab:hover{color:var(--t2)}
 .tab.on{color:var(--cyan);border-bottom-color:var(--cyan)}
 .cnt{padding:24px 40px 40px}
@@ -48,10 +49,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .ts-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--bdr);flex-wrap:wrap;gap:10px}
 .ts-hdr h2{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
 .ts-hdr .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
-.fg{display:flex;gap:6px;flex-wrap:wrap}
+.fg{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .fb{background:var(--card-a);border:1px solid var(--bdr);color:var(--t2);padding:5px 12px;border-radius:20px;font-size:11px;font-family:inherit;font-weight:500;cursor:pointer;transition:all .2s}
 .fb:hover{border-color:var(--blue);color:var(--t1)}
 .fb.on{background:rgba(74,144,226,.12);border-color:var(--blue);color:var(--cyan)}
+.search-box{background:var(--card-a);border:1px solid var(--bdr);color:var(--t1);padding:5px 12px;border-radius:20px;font-size:12px;font-family:inherit;outline:none;width:180px;transition:border-color .2s}
+.search-box::placeholder{color:var(--t3)}
+.search-box:focus{border-color:var(--blue)}
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;min-width:700px}
 thead th{text-align:left;padding:10px 20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--t3);background:var(--card-a);border-bottom:1px solid var(--bdr);white-space:nowrap}
@@ -69,6 +73,20 @@ tbody td:first-child{color:var(--t1);font-weight:500}
 .bt{flex:1;height:30px;background:var(--card-a);border-radius:6px;overflow:hidden;cursor:pointer}
 .bf{height:100%;border-radius:6px;transition:width .8s cubic-bezier(.22,1,.36,1);display:flex;align-items:center;padding-left:10px;font-size:11px;font-weight:600;color:#fff;white-space:nowrap}
 .bf.blue{background:linear-gradient(90deg,var(--blue),#6AACE8)}.bf.cyan{background:linear-gradient(90deg,var(--cyan),#67D4F8)}.bf.green{background:linear-gradient(90deg,var(--green),#6EE7B7)}.bf.amber{background:linear-gradient(90deg,var(--amber),#FCD34D)}.bf.rose{background:linear-gradient(90deg,var(--rose),#F9A8D4)}.bf.violet{background:linear-gradient(90deg,var(--violet),#C4B5FD)}.bf.orange{background:linear-gradient(90deg,var(--orange),#FDBA74)}.bf.red{background:linear-gradient(90deg,var(--red),#FCA5A5)}
+/* Score gauge mini */
+.score-bar{display:inline-flex;align-items:center;gap:6px}
+.score-pip{width:8px;height:8px;border-radius:50%;display:inline-block}
+/* Two-column chart grid */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+@media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
+/* RAG indicators */
+.rag-R{background:rgba(239,68,68,.15);color:var(--red)}
+.rag-A{background:rgba(251,191,36,.15);color:var(--amber)}
+.rag-G{background:rgba(52,211,153,.15);color:var(--green)}
+/* Loading spinner */
+.loading{display:flex;align-items:center;justify-content:center;padding:60px;gap:12px;color:var(--t3);font-size:14px}
+.spin-ring{width:20px;height:20px;border:2px solid var(--bdr);border-top-color:var(--cyan);border-radius:50%;animation:sp 0.8s linear infinite}
+/* Modal */
 .mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:100;justify-content:center;align-items:center;padding:40px}
 .mo.open{display:flex}
 .ml{background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);width:100%;max-width:960px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.5)}
@@ -80,7 +98,11 @@ tbody td:first-child{color:var(--t1);font-weight:500}
 .mb table{width:100%}
 .ms{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
 .empty{text-align:center;padding:50px 20px;color:var(--t3)}
-@media(max-width:768px){.hdr,.cnt,.tabs{padding-left:16px;padding-right:16px}.row{grid-template-columns:repeat(2,1fr)}.bl{width:90px}.banner{padding:10px 16px}}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.detail-item{background:var(--card-a);border:1px solid var(--bdr);border-radius:8px;padding:12px 14px}
+.detail-item .di-l{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--t3);margin-bottom:4px}
+.detail-item .di-v{font-size:14px;color:var(--t1);font-weight:500}
+@media(max-width:768px){.hdr,.cnt,.tabs{padding-left:16px;padding-right:16px}.row{grid-template-columns:repeat(2,1fr)}.bl{width:90px}.banner{padding:10px 16px}.detail-grid{grid-template-columns:1fr}}
 @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}.an{animation:fi .35s ease-out forwards}
 </style>
 </head>
@@ -99,6 +121,7 @@ tbody td:first-child{color:var(--t1);font-weight:500}
   <div class="banner">
     <span>⚙️</span><span>SharePoint Connection</span>
     <code id="status" class="ok">Connecting…</code>
+    <span id="custStatus" style="margin-left:8px"></span>
     <span class="ts" id="timer" style="margin-left:auto"></span>
   </div>
   <div class="hdr">
@@ -116,21 +139,83 @@ tbody td:first-child{color:var(--t1);font-weight:500}
   <div class="tabs">
     <div class="tab on" data-tab="scopes">📊 Scopes by Category</div>
     <div class="tab" data-tab="renewals">🔄 Renewals Pipeline</div>
+    <div class="tab" data-tab="customers">👥 Customer Master</div>
   </div>
+
+  <!-- SCOPES TAB -->
   <div class="cnt" id="scopesCnt">
     <div class="row" id="sSummary"></div>
+
+    <!-- CS Tracker enriched KPIs (joined via ClientID) -->
+    <div id="csEnrichedWrap" style="display:none;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="font-size:13px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.6px">CS Tracker — Joined Data</span>
+        <span style="font-size:11px;color:var(--t3)" id="csMatchLabel"></span>
+      </div>
+      <!-- Activity & Implementation row -->
+      <div class="row" id="csKpiRow1"></div>
+      <!-- Stations row -->
+      <div class="row" id="csKpiRow2"></div>
+      <!-- Publishing & POC row -->
+      <div class="cs an" style="margin-bottom:0">
+        <h2 style="margin-bottom:14px">Implementation Stage &amp; Publishing Activity</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div><div style="font-size:12px;color:var(--t3);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px">Stage Breakdown</div><div id="csStageChart"></div></div>
+          <div><div style="font-size:12px;color:var(--t3);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px">Publishing Activity</div><div id="csPublishChart"></div></div>
+        </div>
+      </div>
+    </div>
+    <div id="csNoDataNote" style="display:none;margin-bottom:24px;padding:14px 20px;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);font-size:13px;color:var(--t3)">
+      ⏳ CS Tracker not yet loaded — switch to the 👥 Customer Master tab or wait for data to sync.
+    </div>
+
     <div class="cs an"><h2>Scopes by Category — Comparison</h2><div id="sChart"></div></div>
     <div class="ts-wrap an">
       <div class="ts-hdr"><h2><span class="dot" style="background:var(--cyan)"></span> Scopes Detail</h2><div class="fg" id="sFilters"></div></div>
       <div class="tw"><table><thead id="sTh"></thead><tbody id="sTb"></tbody></table></div>
     </div>
   </div>
+
+  <!-- RENEWALS TAB -->
   <div class="cnt off" id="renewCnt">
     <div class="row" id="rSummary"></div>
     <div class="cs an"><h2>Renewals by Time Bucket</h2><div id="rChart"></div></div>
     <div class="ts-wrap an">
       <div class="ts-hdr"><h2><span class="dot" style="background:var(--amber)"></span> Renewals Detail</h2><div class="fg" id="rFilters"></div></div>
       <div class="tw"><table><thead id="rTh"></thead><tbody id="rTb"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- CUSTOMERS TAB -->
+  <div class="cnt off" id="customersCnt">
+    <div id="custLoadingMsg" class="loading"><div class="spin-ring"></div> Loading Customer Master data…</div>
+    <div id="custContent" style="display:none">
+      <!-- KPI row -->
+      <div class="row" id="cSummary"></div>
+      <!-- Charts -->
+      <div class="chart-grid">
+        <div class="cs an"><h2>Health Distribution</h2><div id="cHealthChart"></div></div>
+        <div class="cs an"><h2>RAG Status Breakdown</h2><div id="cRagChart"></div></div>
+        <div class="cs an"><h2>Upsell Score Distribution</h2><div id="cUpsellChart"></div></div>
+        <div class="cs an"><h2>Churn Risk Distribution</h2><div id="cChurnChart"></div></div>
+      </div>
+      <!-- MRR by CSM -->
+      <div class="cs an"><h2>MRR Jan 2026 by CSM</h2><div id="cCsmChart"></div></div>
+      <!-- Table -->
+      <div class="ts-wrap an">
+        <div class="ts-hdr">
+          <h2><span class="dot" style="background:var(--violet)"></span> Customer Detail</h2>
+          <div class="fg">
+            <input class="search-box" id="custSearch" type="text" placeholder="Search customers…">
+            <div id="cFilters"></div>
+          </div>
+        </div>
+        <div class="tw"><table><thead id="cTh"></thead><tbody id="cTb"></tbody></table></div>
+      </div>
+    </div>
+    <div id="custErrorMsg" style="display:none" class="empty">
+      ⚠️ Could not load Customer Master file.<br>
+      <span style="font-size:12px;color:var(--t3);display:block;margin-top:8px" id="custErrorDetail"></span>
     </div>
   </div>
 </div>
@@ -144,16 +229,9 @@ tbody td:first-child{color:var(--t1);font-weight:500}
 </div>
 
 <script>
-// ═══════════════════════════════════════════
-//  MSAL CONFIG — Register app at Azure AD
-// ═══════════════════════════════════════════
-// IMPORTANT: You need to register an app in Azure AD:
-// 1. Go to https://portal.azure.com > Azure Active Directory > App registrations > New registration
-// 2. Name: "Progress Scope Dashboard"
-// 3. Redirect URI: https://demizimmermann-dotcom.github.io/priceeasydashboard/ (Single-page application)
-// 4. Copy the Application (client) ID and Tenant ID below
-// 5. Under API permissions, add: Microsoft Graph > Sites.Read.All, SharePoint > AllSites.Read
-
+// ═══════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════
 var msalConfig = {
   auth: {
     clientId: "b3240d43-7574-4b22-8d96-f1704f7a1b76",
@@ -167,51 +245,61 @@ var loginRequest = { scopes: ["https://priceeasy1.sharepoint.com/.default"] };
 var msalInstance = new msal.PublicClientApplication(msalConfig);
 var accessToken = null;
 
-// ═══════════════════════════════════════════
+// SharePoint list (existing)
+var SITE = 'https://priceeasy1.sharepoint.com/sites/AccountingFinance';
+var GUID = '47f480c2-eb0f-4408-b62a-b0b3d85d88e4';
+
+// Customer Master Excel file in SharePoint
+// UPDATE THIS PATH to match where the file lives in your SharePoint.
+// Common paths: '/sites/AccountingFinance/Shared Documents/Customer Master and Tracker (All Teams).xlsx'
+// or '/Shared Documents/General/Customer Master and Tracker (All Teams).xlsx'
+var CUST_SITE = 'https://priceeasy1.sharepoint.com/sites/AccountingFinance';
+var CUST_FILE_PATH = '/sites/AccountingFinance/Shared Documents/Customer Master and Tracker (All Teams).xlsx';
+// Sheet name — update if your main sheet has a different name
+var CUST_SHEET = 'Sheet1';
+
+// ═══════════════════════════════════════════════════════════
+//  DATA STORES
+// ═══════════════════════════════════════════════════════════
+var D = []; // scopes list data
+var C = []; // customer master data
+var curTab = 'scopes', sF = 'all', rF = 'all', cF = 'all', cSearch = '';
+
+// ═══════════════════════════════════════════════════════════
 //  AUTH
-// ═══════════════════════════════════════════
-// Handle redirect response on page load
+// ═══════════════════════════════════════════════════════════
 msalInstance.handleRedirectPromise().then(function(resp) {
   if (resp) {
-    // Returned from redirect login
     accessToken = resp.accessToken;
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
-    fetchData();
-    startAutoRefresh();
+    showDashboard();
   } else {
-    // Check if user is already signed in
     var accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
       msalInstance.acquireTokenSilent({ scopes: loginRequest.scopes, account: accounts[0] })
         .then(function(tokenResp) {
           accessToken = tokenResp.accessToken;
-          document.getElementById('loginScreen').style.display = 'none';
-          document.getElementById('dashboard').style.display = 'block';
-          fetchData();
-          startAutoRefresh();
+          showDashboard();
         })
-        .catch(function(err) {
-          console.log('Silent token failed, user needs to sign in');
-        });
+        .catch(function() {});
     }
   }
-}).catch(function(err) {
-  console.error('Redirect error:', err);
-});
+}).catch(function(err) { console.error('Redirect error:', err); });
 
-// Login button uses redirect (no popups!)
 document.getElementById('loginBtn').addEventListener('click', function() {
   msalInstance.loginRedirect(loginRequest);
 });
 
-// ═══════════════════════════════════════════
-//  DATA
-// ═══════════════════════════════════════════
-var SITE = 'https://priceeasy1.sharepoint.com/sites/AccountingFinance';
-var GUID = '47f480c2-eb0f-4408-b62a-b0b3d85d88e4';
-var D = [], curTab = 'scopes', sF = 'all', rF = 'all';
+function showDashboard() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  fetchData();
+  fetchCustomerData();
+  startAutoRefresh();
+}
 
+// ═══════════════════════════════════════════════════════════
+//  SCOPES LIST FETCH (existing)
+// ═══════════════════════════════════════════════════════════
 function fetchData() {
   var url = SITE + "/_api/web/lists(guid'" + GUID + "')/items?$top=5000&$select=*";
   var headers = { 'Accept': 'application/json;odata=verbose' };
@@ -232,6 +320,322 @@ function fetchData() {
     });
 }
 
+// ═══════════════════════════════════════════════════════════
+//  CUSTOMER MASTER EXCEL FETCH (new)
+// Uses SharePoint REST API to read Excel file via /_api/web/GetFileByServerRelativeUrl
+// then reads table rows using /_api/web/lists approach on the workbook
+// ═══════════════════════════════════════════════════════════
+function fetchCustomerData() {
+  if (!accessToken) return;
+
+  // Use SharePoint Excel REST API to read the workbook
+  // Endpoint: /_api/v2.1/drives/{driveId}/root:/{path}:/workbook/worksheets/{sheet}/usedRange
+  // We'll use the simpler SharePoint Excel Services approach first, then fallback to Graph
+  fetchCustomerViaGraph();
+}
+
+function fetchCustomerViaGraph() {
+  // Step 1: Get site ID via Graph
+  var graphSite = 'https://graph.microsoft.com/v1.0/sites/priceeasy1.sharepoint.com:/sites/AccountingFinance';
+  var h = { 'Authorization': 'Bearer ' + accessToken, 'Accept': 'application/json' };
+
+  fetch(graphSite, { headers: h })
+    .then(function(r) { if (!r.ok) throw new Error('Graph site lookup failed: ' + r.status); return r.json(); })
+    .then(function(site) {
+      // Step 2: Find the file in the drive
+      var driveUrl = 'https://graph.microsoft.com/v1.0/sites/' + site.id + '/drive/root:/Customer Master and Tracker (All Teams).xlsx';
+      return fetch(driveUrl, { headers: h }).then(function(r) {
+        if (!r.ok) throw new Error('File not found at root. Try subfolder. Status: ' + r.status);
+        return r.json();
+      }).then(function(file) {
+        return { siteId: site.id, driveItemId: file.id };
+      }).catch(function() {
+        // Try Shared Documents folder
+        var driveUrl2 = 'https://graph.microsoft.com/v1.0/sites/' + site.id + '/drive/root:/Shared Documents/Customer Master and Tracker (All Teams).xlsx';
+        return fetch(driveUrl2, { headers: h }).then(function(r) {
+          if (!r.ok) throw new Error('File not found in Shared Documents. Status: ' + r.status);
+          return r.json();
+        }).then(function(file) {
+          return { siteId: site.id, driveItemId: file.id };
+        });
+      });
+    })
+    .then(function(info) {
+      // Step 3: Read worksheet used range
+      var rangeUrl = 'https://graph.microsoft.com/v1.0/sites/' + info.siteId + '/drive/items/' + info.driveItemId + '/workbook/worksheets/Sheet1/usedRange';
+      return fetch(rangeUrl, { headers: h }).then(function(r) {
+        if (!r.ok) {
+          // Try getting available sheets first
+          var sheetsUrl = 'https://graph.microsoft.com/v1.0/sites/' + info.siteId + '/drive/items/' + info.driveItemId + '/workbook/worksheets';
+          return fetch(sheetsUrl, { headers: h }).then(function(sr) { return sr.json(); }).then(function(sheetsData) {
+            var sheetName = (sheetsData.value && sheetsData.value.length > 0) ? sheetsData.value[0].name : 'Sheet1';
+            var rangeUrl2 = 'https://graph.microsoft.com/v1.0/sites/' + info.siteId + '/drive/items/' + info.driveItemId + '/workbook/worksheets/' + encodeURIComponent(sheetName) + '/usedRange';
+            return fetch(rangeUrl2, { headers: h }).then(function(r2) { if (!r2.ok) throw new Error('Range fetch failed: ' + r2.status); return r2.json(); });
+          });
+        }
+        return r.json();
+      });
+    })
+    .then(function(rangeData) {
+      var values = rangeData.values;
+      if (!values || values.length < 2) throw new Error('No data in workbook range');
+      var headers = values[0].map(function(h) { return (h || '').toString().trim(); });
+      C = [];
+      for (var i = 1; i < values.length; i++) {
+        var row = values[i];
+        var obj = {};
+        headers.forEach(function(h, idx) { obj[h] = row[idx] !== undefined ? row[idx] : ''; });
+        if (obj['CUSTOMER_NAME'] || obj['QB_ID']) C.push(parseCustRow(obj));
+      }
+      setCustStatus(true, C.length + ' customers');
+      showCustContent();
+      if (curTab === 'customers') renderCustomers();
+    })
+    .catch(function(e) {
+      console.error('Customer fetch error:', e);
+      setCustStatus(false, 'Customers: ' + e.message);
+      showCustError(e.message);
+    });
+}
+
+function parseCustRow(r) {
+  return {
+    qbId: r['QB_ID'] || '',
+    custId: r['CUSTOMER_ID'] || '',
+    name: r['CUSTOMER_NAME'] || 'Unknown',
+    ba1: r['BA 1'] || '',
+    ba2: r['BA 2'] || '',
+    csm: r['CSM'] || '',
+    activity: r['ACTIVITY'] || '',
+    sentiment: r['SENTIMENT'] || '',
+    upsellScore: parseFloat(r['UPSELL_SCORE']) || 0,
+    churnScore: parseFloat(r['CHURN_SCORE']) || 0,
+    upsellComments: r['UPSELL_COMMENTS'] || '',
+    churnComments: r['CHURN_COMMENTS'] || '',
+    mrrDec: parseFloat(r['MRR Dec']) || 0,
+    mrrJan: parseFloat(r['MRR JAN 2026']) || 0,
+    contractDate: r['CONTRACT DATE'] ? new Date(r['CONTRACT DATE']) : null,
+    renewalDate: r['RENEWAL DATE'] ? new Date(r['RENEWAL DATE']) : null,
+    arOutstanding: parseFloat(r['AR Outstanding']) || 0,
+    arOutstandingJan: parseFloat(r['AR Outstanding JAN-26']) || 0,
+    totalStations: parseInt(r['TOTAL_STATIONS']) || 0,
+    activeStations: parseInt(r['ACTIVE_STATIONS']) || 0,
+    inactiveStations: parseInt(r['INACTIVE_STATIONS']) || 0,
+    stage: r['Stage'] || '',
+    pocEnd: r['End of POC'] || r['POC End'] || r['EndDays inEnd of POCSite Mapping'] || '',
+    rag: r['RAG'] || '',
+    implScore: parseFloat(r['IMPLEMENTATION_SCORE']) || 0,
+    posType: r['POS TYPE'] || '',
+    health: r['Health'] || '',
+    latestUpdate: r['Latest Update'] || '',
+    upsellOpportunity: r['UPSELL OPPORTUNITY BASED ON AI'] || '',
+    competitor: r['COMPETITOR_PRICE_QUALITY'] || '',
+    pctWithCost: parseFloat(r['PCT_STATIONS_WITH_COST']) || 0,
+    pctWithMargin: parseFloat(r['PCT_STATIONS_WITH_MARGIN']) || 0,
+    pctWithVolume: parseFloat(r['PCT_STATIONS_WITH_VOLUME']) || 0,
+    ruleScore: parseFloat(r['RULE_SOPHISTICATION_SCORE']) || 0,
+    publishActivity: r['PUBLISH_ACTIVITY'] || '',
+    lastActivity: r['LAST_ACTIVITY_ON'] || '',
+    platform: r['FUEL_PLATFORM'] || ''
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CUSTOMER RENDER
+// ═══════════════════════════════════════════════════════════
+function renderCustomers() {
+  rCS(); rCCharts(); rCF(); rCT();
+}
+
+function rCS() {
+  var totalMrr = 0, totalAr = 0, highChurn = 0, highUpsell = 0;
+  C.forEach(function(c) {
+    totalMrr += c.mrrJan;
+    totalAr += c.arOutstandingJan;
+    if (c.churnScore >= 7) highChurn++;
+    if (c.upsellScore >= 7) highUpsell++;
+  });
+  var ragCounts = {R:0,A:0,G:0};
+  C.forEach(function(c){ var r=c.rag?c.rag[0].toUpperCase():''; if(ragCounts[r]!==undefined)ragCounts[r]++; });
+  var cards = [
+    {l:'Total Customers', v:C.length, s:'Active in tracker', a:'cyan'},
+    {l:'MRR Jan 2026', v:$(totalMrr), s:'Total monthly recurring', a:'green'},
+    {l:'AR Outstanding', v:$(totalAr), s:'Jan 2026', a:'amber'},
+    {l:'High Churn Risk', v:highChurn, s:'Score ≥ 7', a:'red'},
+    {l:'Upsell Opportunities', v:highUpsell, s:'Score ≥ 7', a:'violet'},
+    {l:'Red RAG Status', v:ragCounts.R, s:ragCounts.A+' amber · '+ragCounts.G+' green', a:'rose'}
+  ];
+  document.getElementById('cSummary').innerHTML = cards.map(function(c) {
+    return '<div class="sc an" data-a="'+c.a+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb">'+c.s+'</div></div>';
+  }).join('');
+}
+
+function rCCharts() {
+  // Health Distribution
+  var healthMap = {};
+  C.forEach(function(c) { var h=c.health||'Unknown'; healthMap[h]=(healthMap[h]||0)+1; });
+  var hColors = {Green:'green',Yellow:'amber',Red:'red',Unknown:'violet'};
+  var healthHtml = '', hMax = Math.max.apply(null, Object.values(healthMap)) || 1;
+  Object.keys(healthMap).sort().forEach(function(k,i) {
+    var col = hColors[k] || CL[i%CL.length];
+    healthHtml += '<div class="br"><div class="bl">'+k+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(healthMap[k]/hMax*100,8)+'%">'+healthMap[k]+'</div></div></div>';
+  });
+  document.getElementById('cHealthChart').innerHTML = healthHtml || '<div class="empty">No health data</div>';
+
+  // RAG
+  var ragMap = {Red:0,Amber:0,Green:0};
+  C.forEach(function(c) {
+    var r=c.rag||'';
+    if(r.toLowerCase().includes('red')||r==='R')ragMap.Red++;
+    else if(r.toLowerCase().includes('amber')||r==='A')ragMap.Amber++;
+    else if(r.toLowerCase().includes('green')||r==='G')ragMap.Green++;
+  });
+  var ragMax = Math.max(ragMap.Red,ragMap.Amber,ragMap.Green,1);
+  var ragHtml = [
+    {k:'Red',c:'red'},{k:'Amber',c:'amber'},{k:'Green',c:'green'}
+  ].map(function(r){
+    return '<div class="br"><div class="bl">'+r.k+'</div><div class="bt"><div class="bf '+r.c+'" style="width:'+Math.max(ragMap[r.k]/ragMax*100,8)+'%">'+ragMap[r.k]+'</div></div></div>';
+  }).join('');
+  document.getElementById('cRagChart').innerHTML = ragHtml;
+
+  // Upsell score buckets
+  var uBuckets = {'0-3':0,'4-6':0,'7-8':0,'9-10':0};
+  C.forEach(function(c){
+    var s=c.upsellScore;
+    if(s<=3)uBuckets['0-3']++;
+    else if(s<=6)uBuckets['4-6']++;
+    else if(s<=8)uBuckets['7-8']++;
+    else uBuckets['9-10']++;
+  });
+  var uMax=Math.max.apply(null,Object.values(uBuckets))||1;
+  var uColors=['green','cyan','amber','violet'];
+  document.getElementById('cUpsellChart').innerHTML=Object.keys(uBuckets).map(function(k,i){
+    return '<div class="br"><div class="bl">Score '+k+'</div><div class="bt"><div class="bf '+uColors[i]+'" style="width:'+Math.max(uBuckets[k]/uMax*100,8)+'%">'+uBuckets[k]+'</div></div></div>';
+  }).join('');
+
+  // Churn score buckets
+  var cBuckets = {'0-3':0,'4-6':0,'7-8':0,'9-10':0};
+  C.forEach(function(c){
+    var s=c.churnScore;
+    if(s<=3)cBuckets['0-3']++;
+    else if(s<=6)cBuckets['4-6']++;
+    else if(s<=8)cBuckets['7-8']++;
+    else cBuckets['9-10']++;
+  });
+  var cMax=Math.max.apply(null,Object.values(cBuckets))||1;
+  var cColors=['green','amber','orange','red'];
+  document.getElementById('cChurnChart').innerHTML=Object.keys(cBuckets).map(function(k,i){
+    return '<div class="br"><div class="bl">Risk '+k+'</div><div class="bt"><div class="bf '+cColors[i]+'" style="width:'+Math.max(cBuckets[k]/cMax*100,8)+'%">'+cBuckets[k]+'</div></div></div>';
+  }).join('');
+
+  // MRR by CSM
+  var csmMap = {};
+  C.forEach(function(c){ if(c.csm){csmMap[c.csm]=(csmMap[c.csm]||0)+c.mrrJan;} });
+  var csmSorted=Object.keys(csmMap).sort(function(a,b){return csmMap[b]-csmMap[a]});
+  var csmMax=csmMap[csmSorted[0]]||1;
+  document.getElementById('cCsmChart').innerHTML=csmSorted.slice(0,15).map(function(k,i){
+    return '<div class="br"><div class="bl" style="width:160px">'+k+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(csmMap[k]/csmMax*100,8)+'%">'+$(csmMap[k])+'</div></div></div>';
+  }).join('') || '<div class="empty">No CSM data</div>';
+}
+
+function rCF() {
+  var stages = ['all'];
+  C.forEach(function(c){ if(c.stage && stages.indexOf(c.stage)===-1) stages.push(c.stage); });
+  document.getElementById('cFilters').innerHTML = stages.slice(0,8).map(function(s){
+    return '<button class="fb'+(cF===s?' on':'')+'" data-cf="'+s+'">'+(s==='all'?'All Stages':s)+'</button>';
+  }).join('');
+}
+
+function rCT() {
+  var filtered = C;
+  if (cF !== 'all') filtered = filtered.filter(function(c){ return c.stage===cF; });
+  if (cSearch) {
+    var q = cSearch.toLowerCase();
+    filtered = filtered.filter(function(c){ return c.name.toLowerCase().includes(q) || c.csm.toLowerCase().includes(q) || c.custId.toLowerCase().includes(q); });
+  }
+  filtered = filtered.slice().sort(function(a,b){ return b.mrrJan-a.mrrJan; });
+
+  document.getElementById('cTh').innerHTML = '<tr><th>Customer</th><th>CSM</th><th>Stage</th><th>MRR Jan</th><th>Churn Risk</th><th>Upsell</th><th>RAG</th><th>Health</th><th>Stations</th></tr>';
+  document.getElementById('cTb').innerHTML = filtered.slice(0,80).map(function(c){
+    var churnCol = c.churnScore>=7?'red':c.churnScore>=4?'amber':'green';
+    var upCol = c.upsellScore>=7?'violet':c.upsellScore>=4?'cyan':'blue';
+    var ragCls = c.rag?(c.rag.toLowerCase().includes('red')||c.rag==='R'?'rag-R':c.rag.toLowerCase().includes('amber')||c.rag==='A'?'rag-A':'rag-G'):'';
+    var healthCol = c.health==='Green'?'green':c.health==='Red'?'red':c.health==='Yellow'?'amber':'violet';
+    return '<tr data-cid="'+c.custId+'">' +
+      '<td>'+c.name+'</td>' +
+      '<td>'+c.csm+'</td>' +
+      '<td>'+(c.stage?'<span class="bd bd-cyan">'+c.stage+'</span>':'—')+'</td>' +
+      '<td>'+$(c.mrrJan)+'</td>' +
+      '<td><span class="bd bd-'+churnCol+'">'+c.churnScore.toFixed(1)+'</span></td>' +
+      '<td><span class="bd bd-'+upCol+'">'+c.upsellScore.toFixed(1)+'</span></td>' +
+      '<td>'+(c.rag?'<span class="bd '+ragCls+'">'+c.rag+'</span>':'—')+'</td>' +
+      '<td>'+(c.health?'<span class="bd bd-'+healthCol+'">'+c.health+'</span>':'—')+'</td>' +
+      '<td>'+c.activeStations+' / '+c.totalStations+'</td>' +
+      '</tr>';
+  }).join('') || '<tr><td colspan="9"><div class="empty">No customers found.</div></td></tr>';
+}
+
+function drillCustomer(custId) {
+  var c; C.forEach(function(x){ if(x.custId===custId)c=x; });
+  if(!c) return;
+  document.getElementById('drillT').textContent = c.name;
+  document.getElementById('drillB').innerHTML =
+    '<div class="detail-grid">' +
+      dItem('Customer ID', c.custId) +
+      dItem('QB ID', c.qbId) +
+      dItem('CSM', c.csm) +
+      dItem('BA 1', c.ba1) +
+      dItem('BA 2', c.ba2) +
+      dItem('Stage', c.stage) +
+      dItem('Health', c.health) +
+      dItem('RAG', c.rag) +
+      dItem('Upsell Score', c.upsellScore.toFixed(1)) +
+      dItem('Churn Score', c.churnScore.toFixed(1)) +
+      dItem('MRR Dec', $(c.mrrDec)) +
+      dItem('MRR Jan 2026', $(c.mrrJan)) +
+      dItem('AR Outstanding', $(c.arOutstanding)) +
+      dItem('AR Outstanding Jan-26', $(c.arOutstandingJan)) +
+      dItem('Total Stations', c.totalStations) +
+      dItem('Active Stations', c.activeStations) +
+      dItem('Inactive Stations', c.inactiveStations) +
+      dItem('Platform', c.platform) +
+      dItem('POS Type', c.posType) +
+      dItem('Rule Score', c.ruleScore.toFixed(1)) +
+      dItem('Impl. Score', c.implScore.toFixed(1)) +
+      dItem('Last Activity', c.lastActivity) +
+      dItem('Contract Date', c.contractDate ? fd(c.contractDate) : '—') +
+      dItem('Renewal Date', c.renewalDate ? fd(c.renewalDate) : '—') +
+    '</div>' +
+    (c.upsellComments ? '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">UPSELL COMMENTS</div><div style="font-size:13px;color:var(--t2)">'+c.upsellComments+'</div></div>' : '') +
+    (c.churnComments ? '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">CHURN COMMENTS</div><div style="font-size:13px;color:var(--t2)">'+c.churnComments+'</div></div>' : '') +
+    (c.latestUpdate ? '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">LATEST UPDATE</div><div style="font-size:13px;color:var(--t2)">'+c.latestUpdate+'</div></div>' : '') +
+    (c.upsellOpportunity ? '<div><div style="font-size:11px;color:var(--t3);margin-bottom:4px">AI UPSELL OPPORTUNITY</div><div style="font-size:13px;color:var(--violet)">'+c.upsellOpportunity+'</div></div>' : '');
+  document.getElementById('drillMo').classList.add('open');
+}
+
+function dItem(label, val) {
+  return '<div class="detail-item"><div class="di-l">'+label+'</div><div class="di-v">'+(val||'—')+'</div></div>';
+}
+
+function showCustContent() {
+  document.getElementById('custLoadingMsg').style.display = 'none';
+  document.getElementById('custErrorMsg').style.display = 'none';
+  document.getElementById('custContent').style.display = 'block';
+  // Re-render Scopes tab CS enrichment now that customer data is available
+  rSSEnriched();
+  if (curTab === 'customers') renderCustomers();
+}
+
+function showCustError(msg) {
+  document.getElementById('custLoadingMsg').style.display = 'none';
+  document.getElementById('custContent').style.display = 'none';
+  document.getElementById('custErrorMsg').style.display = 'block';
+  document.getElementById('custErrorDetail').textContent = msg + ' — Check that CUST_FILE_PATH in the code matches where the file is stored in SharePoint.';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EXISTING SCOPE/RENEWAL HELPERS
+// ═══════════════════════════════════════════════════════════
 function parseRow(item) {
   var eff = item.ContractEffectiveDate ? new Date(item.ContractEffectiveDate) : null;
   var termRaw = item.ContractTerm || '';
@@ -258,9 +662,6 @@ function parseRow(item) {
   };
 }
 
-// ═══════════════════════════════════════════
-//  HELPERS
-// ═══════════════════════════════════════════
 function mr(o){var n=new Date(),s=new Date(n.getFullYear(),n.getMonth()+o,1),e=new Date(n.getFullYear(),n.getMonth()+o+1,0,23,59,59);return{s:s,e:e}}
 function ytd(){var n=new Date();return{s:new Date(n.getFullYear(),0,1),e:n}}
 function du(d){if(!d)return Infinity;var n=new Date();n.setHours(0,0,0,0);var t=new Date(d);t.setHours(0,0,0,0);return Math.ceil((t-n)/864e5)}
@@ -272,15 +673,139 @@ var CL=['blue','cyan','green','amber','rose','violet','orange'];
 function bc(s){return CL[(s||'').length%CL.length]}
 function sc(s){return{Active:'green',Signed:'blue',Pending:'amber','In Review':'violet','Pending Review':'violet',Draft:'cyan'}[s]||'cyan'}
 function setStatus(ok,msg){var e=document.getElementById('status');e.textContent=ok?'✓ '+msg:'✗ '+msg;e.className=ok?'ok':'err'}
+function setCustStatus(ok,msg){var e=document.getElementById('custStatus');e.innerHTML=ok?'<code class="ok">👥 '+msg+'</code>':'<code class="warn">⚠️ '+msg+'</code>';}
 function updateTime(){document.getElementById('timer').textContent='Updated '+new Date().toLocaleTimeString()}
 
-// ═══════════════════════════════════════════
-//  RENDER
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  CS TRACKER JOIN HELPER
+//  Joins D (scopes list) → C (customer tracker) via ClientID ↔ CUSTOMER_ID
+// ═══════════════════════════════════════════════════════════
+
+// Build a lookup map from CUSTOMER_ID → CS tracker row
+function buildCsMap() {
+  var map = {};
+  C.forEach(function(c) { if (c.custId) map[String(c.custId).trim().toLowerCase()] = c; });
+  return map;
+}
+
+// For a given scope record, return its CS tracker row (or null)
+function getCsData(scopeRow) {
+  if (!C.length) return null;
+  var map = buildCsMap();
+  var key = String(scopeRow.clientId || '').trim().toLowerCase();
+  return key ? (map[key] || null) : null;
+}
+
+// Render the enriched CS KPI section on the Scopes tab
+function rSSEnriched() {
+  var wrap = document.getElementById('csEnrichedWrap');
+  var noData = document.getElementById('csNoDataNote');
+
+  if (!C.length) {
+    wrap.style.display = 'none';
+    noData.style.display = 'block';
+    return;
+  }
+  noData.style.display = 'none';
+
+  var map = buildCsMap();
+
+  // Find which scope records have a CS match
+  var matched = D.filter(function(d) {
+    return d.clientId && map[String(d.clientId).trim().toLowerCase()];
+  });
+  var matchedCsRows = [];
+  matched.forEach(function(d) {
+    var cs = map[String(d.clientId).trim().toLowerCase()];
+    if (matchedCsRows.indexOf(cs) === -1) matchedCsRows.push(cs);
+  });
+
+  document.getElementById('csMatchLabel').textContent =
+    matchedCsRows.length + ' unique clients matched across ' + matched.length + ' scope records';
+
+  // ── KPI Row 1: Activity & Team ──────────────────────────────
+  var actMap = {};
+  matchedCsRows.forEach(function(c) { var a = c.activity || 'Unknown'; actMap[a] = (actMap[a]||0)+1; });
+  var topActivity = Object.keys(actMap).sort(function(a,b){return actMap[b]-actMap[a]})[0] || '—';
+
+  // CSM coverage
+  var csmSet = {};
+  matchedCsRows.forEach(function(c){ if(c.csm) csmSet[c.csm]=true; });
+  var csmCount = Object.keys(csmSet).length;
+
+  // BA coverage
+  var baSet = {};
+  matchedCsRows.forEach(function(c){ if(c.ba1) baSet[c.ba1]=true; if(c.ba2) baSet[c.ba2]=true; });
+  var baCount = Object.keys(baSet).length;
+
+  // IM coverage — using ba1 as IM field per user request
+  var imSet = {};
+  matchedCsRows.forEach(function(c){ if(c.ba1) imSet[c.ba1]=true; });
+  var imCount = Object.keys(imSet).length;
+
+  document.getElementById('csKpiRow1').innerHTML = [
+    {l:'Matched Clients', v:matchedCsRows.length, s:matched.length+' scope records', a:'cyan'},
+    {l:'CSMs Assigned', v:csmCount, s:'Across matched clients', a:'blue'},
+    {l:'BAs Assigned', v:baCount, s:'BA1 + BA2 combined', a:'violet'},
+    {l:'Top Activity', v:topActivity, s:actMap[topActivity]+' clients', a:'amber'}
+  ].map(function(c){
+    return '<div class="sc an" data-a="'+c.a+'"><div class="lb">'+c.l+'</div><div class="vl" style="font-size:'+(c.v.toString().length>6?'18px':'28px')+'">'+c.v+'</div><div class="sb">'+c.s+'</div></div>';
+  }).join('');
+
+  // ── KPI Row 2: Stations ──────────────────────────────────────
+  var totalActive = 0, totalInactive = 0, pocDone = 0, pocPending = 0;
+  matchedCsRows.forEach(function(c){
+    totalActive += c.activeStations;
+    totalInactive += c.inactiveStations;
+    if (c.pocEnd) {
+      var pocDate = new Date(c.pocEnd);
+      if (!isNaN(pocDate)) { if (pocDate < new Date()) pocDone++; else pocPending++; }
+    }
+  });
+  var activePct = (totalActive + totalInactive) > 0
+    ? Math.round(totalActive / (totalActive + totalInactive) * 100) : 0;
+
+  document.getElementById('csKpiRow2').innerHTML = [
+    {l:'Active Stations', v:totalActive.toLocaleString(), s:activePct+'% of total', a:'green'},
+    {l:'Inactive Stations', v:totalInactive.toLocaleString(), s:(100-activePct)+'% of total', a:'red'},
+    {l:'POC Completed', v:pocDone, s:'End date passed', a:'cyan'},
+    {l:'POC In Progress', v:pocPending, s:'End date upcoming', a:'orange'}
+  ].map(function(c){
+    return '<div class="sc an" data-a="'+c.a+'"><div class="lb">'+c.l+'</div><div class="vl" style="font-size:'+(c.v.toString().length>6?'18px':'28px')+'">'+c.v+'</div><div class="sb">'+c.s+'</div></div>';
+  }).join('');
+
+  // ── Stage Breakdown Chart ────────────────────────────────────
+  var stageMap = {};
+  matchedCsRows.forEach(function(c){ var s=c.stage||'Unknown'; stageMap[s]=(stageMap[s]||0)+1; });
+  var stageMax = Math.max.apply(null, Object.values(stageMap).concat([1]));
+  document.getElementById('csStageChart').innerHTML = Object.keys(stageMap)
+    .sort(function(a,b){return stageMap[b]-stageMap[a]})
+    .map(function(s,i){
+      return '<div class="br"><div class="bl" style="width:110px;font-size:11px">'+s+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(stageMap[s]/stageMax*100,8)+'%">'+stageMap[s]+'</div></div></div>';
+    }).join('') || '<div class="empty" style="padding:20px">No stage data</div>';
+
+  // ── Publishing Activity Chart ────────────────────────────────
+  var pubMap = {};
+  matchedCsRows.forEach(function(c){ var p=c.publishActivity||'Unknown'; pubMap[p]=(pubMap[p]||0)+1; });
+  var pubMax = Math.max.apply(null, Object.values(pubMap).concat([1]));
+  var pubColors = {High:'green', Medium:'cyan', Low:'amber', None:'red', Unknown:'violet'};
+  document.getElementById('csPublishChart').innerHTML = Object.keys(pubMap)
+    .sort(function(a,b){return pubMap[b]-pubMap[a]})
+    .map(function(p,i){
+      var col = pubColors[p] || CL[i%CL.length];
+      return '<div class="br"><div class="bl" style="width:110px;font-size:11px">'+p+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(pubMap[p]/pubMax*100,8)+'%">'+pubMap[p]+'</div></div></div>';
+    }).join('') || '<div class="empty" style="padding:20px">No publish data</div>';
+
+  wrap.style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SCOPES + RENEWALS RENDER (unchanged from original)
+// ═══════════════════════════════════════════════════════════
 function renderAll(){
   var n=new Date();
-  document.getElementById('sub').textContent=D.length+' records · '+MO[n.getMonth()]+' '+n.getFullYear();
-  rSS();rSC();rSF();rST();rRS();rRC();rRF();rRT();
+  document.getElementById('sub').textContent=D.length+' scopes · '+(C.length?C.length+' customers · ':'')+MO[n.getMonth()]+' '+n.getFullYear();
+  rSS();rSSEnriched();rSC();rSF();rST();rRS();rRC();rRF();rRT();
 }
 
 function rSS(){
@@ -295,9 +820,8 @@ function rSS(){
     {l:'Scope Types',v:[...new Set(D.map(function(d){return d.scope}))].length,s:'Active categories',a:'violet',p:'ytd'},
     {l:'Avg ARR',v:$(yi.length?yv/yi.length:0),s:'Per scope YTD',a:'rose',p:'ytd'}
   ];
-  document.getElementById('sSummary').innerHTML=cards.map(function(c,i){return'<div class="sc an" data-a="'+c.a+'" data-period="'+c.p+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb">'+c.s+'</div></div>'}).join('');
+  document.getElementById('sSummary').innerHTML=cards.map(function(c){return'<div class="sc an" data-a="'+c.a+'" data-period="'+c.p+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb">'+c.s+'</div></div>'}).join('');
 }
-
 function rSC(){
   var y=ytd(),c=mr(0),scopes=[...new Set(D.map(function(d){return d.scope}))].sort();
   var mx=Math.max.apply(null,scopes.map(function(s){return D.filter(function(d){return d.scope===s&&d.created>=y.s&&d.created<=y.e}).length}))||1;
@@ -308,19 +832,16 @@ function rSC(){
     return'<div class="br" data-scope="'+s+'"><div class="bl">'+s+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(yi.length/mx*100,10)+'%">'+yi.length+' YTD · '+ci.length+' this mo · '+$(v)+'</div></div></div>';
   }).join('');
 }
-
 function rSF(){
-  var cats=['all']; D.forEach(function(d){if(cats.indexOf(d.scope)===-1)cats.push(d.scope)});
+  var cats=['all'];D.forEach(function(d){if(cats.indexOf(d.scope)===-1)cats.push(d.scope)});
   document.getElementById('sFilters').innerHTML=cats.map(function(c){return'<button class="fb'+(sF===c?' on':'')+'" data-sf="'+c+'">'+(c==='all'?'All':c)+'</button>'}).join('');
 }
-
 function rST(){
   var f=sF==='all'?D:D.filter(function(d){return d.scope===sF});
   f=f.slice().sort(function(a,b){return b.created-a.created});
   document.getElementById('sTh').innerHTML='<tr><th>Client</th><th>Scope</th><th>Client Type</th><th>Term</th><th>Effective Date</th><th>End Date</th><th>ARR</th><th>Status</th></tr>';
   document.getElementById('sTb').innerHTML=f.slice(0,60).map(function(d){return'<tr data-id="'+d.id+'"><td>'+d.client+'</td><td><span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span></td><td>'+d.clientType+'</td><td>'+d.term+'</td><td>'+fd(d.effectiveDate)+'</td><td>'+fd(d.endDate)+'</td><td>'+$(d.value)+'</td><td><span class="bd bd-'+sc(d.status)+'">'+(d.status||'—')+'</span></td></tr>'}).join('')||'<tr><td colspan="8"><div class="empty">No scopes found.</div></td></tr>';
 }
-
 function rRS(){
   var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0});
   var b30=[],b60=[],b90=[],b90p=[],autoY=[];
@@ -334,9 +855,8 @@ function rRS(){
     {l:'Total Upcoming',v:up.length,s:$(sv(up))+' total ARR',a:'violet',f:'all'},
     {l:'Auto-Renew',v:autoY.length,s:(up.length?Math.round(autoY.length/up.length*100):0)+'% of upcoming',a:'cyan',f:'all'}
   ];
-  document.getElementById('rSummary').innerHTML=cards.map(function(c,i){return'<div class="sc an" data-a="'+c.a+'" data-rb="'+c.f+'" data-rl="'+c.l+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb">'+c.s+'</div></div>'}).join('');
+  document.getElementById('rSummary').innerHTML=cards.map(function(c){return'<div class="sc an" data-a="'+c.a+'" data-rb="'+c.f+'" data-rl="'+c.l+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb">'+c.s+'</div></div>'}).join('');
 }
-
 function rRC(){
   var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0});
   var bks=[{l:'0–30 Days',k:'0-30',c:'red'},{l:'31–60 Days',k:'31-60',c:'amber'},{l:'61–90 Days',k:'61-90',c:'blue'},{l:'90+ Days',k:'90+',c:'green'}];
@@ -344,12 +864,10 @@ function rRC(){
   bks.forEach(function(b){b.n=up.filter(function(d){return bk(d.endDate)===b.k}).length;b.v=0;up.filter(function(d){return bk(d.endDate)===b.k}).forEach(function(d){b.v+=d.value});if(b.n>mx)mx=b.n});
   document.getElementById('rChart').innerHTML=bks.map(function(b){return'<div class="br" data-rb="'+b.k+'" data-rl="'+b.l+'"><div class="bl">'+b.l+'</div><div class="bt"><div class="bf '+b.c+'" style="width:'+Math.max(b.n/mx*100,10)+'%">'+b.n+' contracts · '+$(b.v)+'</div></div></div>'}).join('');
 }
-
 function rRF(){
   var bks=[{k:'all',l:'All'},{k:'0-30',l:'≤30 Days'},{k:'31-60',l:'31–60'},{k:'61-90',l:'61–90'},{k:'90+',l:'90+'}];
   document.getElementById('rFilters').innerHTML=bks.map(function(b){return'<button class="fb'+(rF===b.k?' on':'')+'" data-rf="'+b.k+'">'+b.l+'</button>'}).join('');
 }
-
 function rRT(){
   var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0});
   if(rF!=='all')up=up.filter(function(d){return bk(d.endDate)===rF});
@@ -358,9 +876,9 @@ function rRT(){
   document.getElementById('rTb').innerHTML=up.slice(0,60).map(function(d){var x=du(d.endDate),u=x<=30?'red':x<=60?'amber':x<=90?'blue':'green',ar=d.autoRenewal==='Annual'?'green':'rose';return'<tr data-id="'+d.id+'"><td>'+d.client+'</td><td><span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span></td><td>'+d.term+'</td><td>'+fd(d.endDate)+'</td><td><span class="bd bd-'+u+'">'+x+' days</span></td><td>'+$(d.value)+'</td><td><span class="bd bd-'+ar+'">'+(d.autoRenewal||'—')+'</span></td><td><span class="bd bd-'+sc(d.status)+'">'+(d.status||'—')+'</span></td></tr>'}).join('')||'<tr><td colspan="8"><div class="empty">No renewals in this bucket.</div></td></tr>';
 }
 
-// ═══════════════════════════════════════════
-//  DRILL
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  DRILL (scopes)
+// ═══════════════════════════════════════════════════════════
 function drillItem(id){
   var d;D.forEach(function(x){if(x.id===id)d=x});if(!d)return;
   document.getElementById('drillT').textContent=d.client;
@@ -396,40 +914,77 @@ function showDrill(title,items){
   document.getElementById('drillMo').classList.add('open');
 }
 
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 //  EVENTS
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 document.addEventListener('click',function(e){
+  // Tabs
   var tab=e.target.closest('.tab');
-  if(tab){curTab=tab.dataset.tab;document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.tab===curTab)});document.getElementById('scopesCnt').classList.toggle('off',curTab!=='scopes');document.getElementById('renewCnt').classList.toggle('off',curTab!=='renewals');return}
+  if(tab){
+    curTab=tab.dataset.tab;
+    document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.tab===curTab)});
+    document.getElementById('scopesCnt').classList.toggle('off',curTab!=='scopes');
+    document.getElementById('renewCnt').classList.toggle('off',curTab!=='renewals');
+    document.getElementById('customersCnt').classList.toggle('off',curTab!=='customers');
+    if(curTab==='customers'&&C.length>0) renderCustomers();
+    return;
+  }
+  // Scope filters
   var sf=e.target.closest('[data-sf]');if(sf){sF=sf.dataset.sf;rSF();rST();return}
+  // Renewal filters
   var rf=e.target.closest('[data-rf]');if(rf){rF=rf.dataset.rf;rRF();rRT();return}
+  // Customer stage filters
+  var cf=e.target.closest('[data-cf]');if(cf){cF=cf.dataset.cf;rCF();rCT();return}
+  // Scope period drills
   var pr=e.target.closest('[data-period]');
   if(pr){var p=pr.dataset.period,items,label;
     if(p==='current'){var r=mr(0);items=D.filter(function(d){return d.created>=r.s&&d.created<=r.e});label='Current Month'}
     else if(p==='prior'){var r=mr(-1);items=D.filter(function(d){return d.created>=r.s&&d.created<=r.e});label='Prior Month'}
     else{var r=ytd();items=D.filter(function(d){return d.created>=r.s&&d.created<=r.e});label='Year to Date'}
     showDrill('Scopes — '+label+' ('+items.length+')',items);return}
+  // Scope chart drill
   var sp=e.target.closest('[data-scope]');
   if(sp){var s=sp.dataset.scope,y=ytd();var items=D.filter(function(d){return d.scope===s&&d.created>=y.s&&d.created<=y.e});showDrill(s+' — YTD ('+items.length+')',items);return}
+  // Renewal bucket drill
   var rb=e.target.closest('[data-rb]');
   if(rb){var k=rb.dataset.rb,l=rb.dataset.rl||'Renewals';var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0});var items=k==='all'?up:up.filter(function(d){return bk(d.endDate)===k});showDrill('Renewals — '+l+' ('+items.length+')',items);return}
+  // Scope row drill
   var row=e.target.closest('tr[data-id]');if(row){drillItem(parseInt(row.dataset.id));return}
+  // Customer row drill
+  var crow=e.target.closest('tr[data-cid]');if(crow){drillCustomer(crow.dataset.cid);return}
+  // Close modal
   if(e.target.id==='drillX'||(e.target.classList.contains('mo')&&e.target.id==='drillMo')){document.getElementById('drillMo').classList.remove('open');return}
+});
+
+// Customer search
+document.addEventListener('input',function(e){
+  if(e.target.id==='custSearch'){cSearch=e.target.value;rCT();}
 });
 
 document.getElementById('refBtn').addEventListener('click',function(){
   var b=document.getElementById('refBtn');b.classList.add('spin');
-  fetchData().then(function(){setTimeout(function(){b.classList.remove('spin')},600);nextRef=Date.now()+REF_INT});
+  Promise.all([fetchData(), fetchCustomerData()]).then(function(){
+    setTimeout(function(){b.classList.remove('spin')},600);
+    nextRef=Date.now()+REF_INT;
+  });
 });
 
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 //  AUTO-REFRESH
-// ═══════════════════════════════════════════
-var REF_INT=5*60*1000,nextRef=Date.now()+REF_INT;
+// ═══════════════════════════════════════════════════════════
+var REF_INT=5*60*1000, nextRef=Date.now()+REF_INT;
 function startAutoRefresh(){
-  setInterval(function(){var b=document.getElementById('refBtn');b.classList.add('spin');fetchData().then(function(){setTimeout(function(){b.classList.remove('spin')},600);nextRef=Date.now()+REF_INT})},REF_INT);
-  setInterval(function(){var s=Math.max(0,Math.round((nextRef-Date.now())/1000)),m=Math.floor(s/60),ss=s%60;document.getElementById('timer').textContent='Updated '+new Date().toLocaleTimeString()+' · next in '+m+':'+(ss<10?'0':'')+ss},1000);
+  setInterval(function(){
+    var b=document.getElementById('refBtn');b.classList.add('spin');
+    Promise.all([fetchData(),fetchCustomerData()]).then(function(){
+      setTimeout(function(){b.classList.remove('spin')},600);
+      nextRef=Date.now()+REF_INT;
+    });
+  },REF_INT);
+  setInterval(function(){
+    var s=Math.max(0,Math.round((nextRef-Date.now())/1000)),m=Math.floor(s/60),ss=s%60;
+    document.getElementById('timer').textContent='Updated '+new Date().toLocaleTimeString()+' · next in '+m+':'+(ss<10?'0':'')+ss;
+  },1000);
 }
 </script>
 </body>
