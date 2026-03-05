@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Progress Scope Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<style>
+:root{--bg:#0B0F1A;--card:#121829;--card-h:#1A2238;--card-a:#0F1525;--bdr:#1E2A45;--bdr-l:#2A3A5C;--t1:#E8ECF4;--t2:#8896B3;--t3:#5A6A8A;--blue:#4A90E2;--cyan:#38BDF8;--green:#34D399;--amber:#FBBF24;--rose:#F472B6;--violet:#A78BFA;--orange:#FB923C;--red:#EF4444;--r:12px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 10%,rgba(74,144,226,.06)0,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(56,189,248,.04)0,transparent 60%);pointer-events:none;z-index:0}
+.app{position:relative;z-index:1}
+.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:20px;text-align:center;padding:40px}
+.login-screen h1{font-family:'Fraunces',serif;font-size:32px;font-weight:800;background:linear-gradient(135deg,var(--t1),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.login-screen p{color:var(--t2);font-size:14px;max-width:400px}
+.login-btn{background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;border:none;padding:14px 36px;border-radius:8px;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s}
+.login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(56,189,248,.3)}
+.banner{background:linear-gradient(135deg,#1a1a2e,#16213e);border-bottom:1px solid var(--bdr);padding:14px 32px;display:flex;align-items:center;gap:12px;font-size:13px;color:var(--t2);flex-wrap:wrap}
+.banner code{padding:2px 8px;border-radius:4px;font-size:12px}
+.banner code.ok{background:rgba(52,211,153,.15);color:var(--green)}
+.banner code.err{background:rgba(239,68,68,.15);color:var(--red)}
+.banner code.warn{background:rgba(251,191,36,.15);color:var(--amber)}
+.hdr{padding:28px 40px 16px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.hdr h1{font-family:'Fraunces',serif;font-size:26px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(135deg,var(--t1),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hdr p{color:var(--t2);font-size:13px;margin-top:4px}
+.hdr-r{display:flex;gap:10px;align-items:center}
+.rbtn{background:var(--card);border:1px solid var(--bdr);color:var(--t2);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;display:flex;align-items:center;gap:6px;transition:all .2s}
+.rbtn:hover{border-color:var(--blue);color:var(--t1)}
+.rbtn.spin svg{animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.ts{font-size:12px;color:var(--t3)}
+.tabs{display:flex;margin:0 40px;border-bottom:1px solid var(--bdr);overflow-x:auto}
+.tab{padding:12px 24px;font-size:14px;font-weight:600;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;user-select:none;white-space:nowrap}
+.tab:hover{color:var(--t2)}
+.tab.on{color:var(--cyan);border-bottom-color:var(--cyan)}
+.cnt{padding:24px 40px 40px}
+.cnt.off{display:none}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+.sc{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:18px 22px;position:relative;overflow:hidden;cursor:pointer;transition:all .25s}
+.sc:hover{border-color:var(--bdr-l);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.sc[data-a=blue]::before{background:var(--blue)}.sc[data-a=cyan]::before{background:var(--cyan)}.sc[data-a=green]::before{background:var(--green)}.sc[data-a=amber]::before{background:var(--amber)}.sc[data-a=rose]::before{background:var(--rose)}.sc[data-a=violet]::before{background:var(--violet)}.sc[data-a=red]::before{background:var(--red)}.sc[data-a=orange]::before{background:var(--orange)}
+.sc .lb{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);margin-bottom:8px}
+.sc .vl{font-family:'Fraunces',serif;font-size:28px;font-weight:700;line-height:1}
+.sc .sb{font-size:12px;color:var(--t2);margin-top:5px}
+.ts-wrap{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;margin-bottom:24px}
+.ts-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--bdr);flex-wrap:wrap;gap:10px}
+.ts-hdr h2{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.ts-hdr .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.fg{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fb{background:var(--card-a);border:1px solid var(--bdr);color:var(--t2);padding:5px 12px;border-radius:20px;font-size:11px;font-family:inherit;font-weight:500;cursor:pointer;transition:all .2s}
+.fb:hover{border-color:var(--blue);color:var(--t1)}
+.fb.on{background:rgba(74,144,226,.12);border-color:var(--blue);color:var(--cyan)}
+.search-box{background:var(--card-a);border:1px solid var(--bdr);color:var(--t1);padding:5px 12px;border-radius:20px;font-size:12px;font-family:inherit;outline:none;width:180px;transition:border-color .2s}
+.search-box::placeholder{color:var(--t3)}
+.search-box:focus{border-color:var(--blue)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:700px}
+thead th{text-align:left;padding:10px 20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--t3);background:var(--card-a);border-bottom:1px solid var(--bdr);white-space:nowrap}
+tbody tr{border-bottom:1px solid rgba(30,42,69,.5);cursor:pointer;transition:background .15s}
+tbody tr:hover{background:var(--card-h)}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:12px 20px;font-size:13px;color:var(--t2)}
+tbody td:first-child{color:var(--t1);font-weight:500}
+.bd{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap}
+.bd-blue{background:rgba(74,144,226,.15);color:var(--blue)}.bd-cyan{background:rgba(56,189,248,.15);color:var(--cyan)}.bd-green{background:rgba(52,211,153,.15);color:var(--green)}.bd-amber{background:rgba(251,191,36,.15);color:var(--amber)}.bd-rose{background:rgba(244,114,182,.15);color:var(--rose)}.bd-red{background:rgba(239,68,68,.15);color:var(--red)}.bd-violet{background:rgba(167,139,250,.15);color:var(--violet)}.bd-orange{background:rgba(251,146,60,.15);color:var(--orange)}
+.cs{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:22px;margin-bottom:24px}
+.cs h2{font-size:15px;font-weight:700;margin-bottom:18px}
+.br{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.bl{width:130px;font-size:12px;font-weight:500;color:var(--t2);text-align:right;flex-shrink:0}
+.bt{flex:1;height:30px;background:var(--card-a);border-radius:6px;overflow:hidden;cursor:pointer}
+.bf{height:100%;border-radius:6px;transition:width .8s cubic-bezier(.22,1,.36,1);display:flex;align-items:center;padding-left:10px;font-size:11px;font-weight:600;color:#fff;white-space:nowrap}
+.bf.blue{background:linear-gradient(90deg,var(--blue),#6AACE8)}.bf.cyan{background:linear-gradient(90deg,var(--cyan),#67D4F8)}.bf.green{background:linear-gradient(90deg,var(--green),#6EE7B7)}.bf.amber{background:linear-gradient(90deg,var(--amber),#FCD34D)}.bf.rose{background:linear-gradient(90deg,var(--rose),#F9A8D4)}.bf.violet{background:linear-gradient(90deg,var(--violet),#C4B5FD)}.bf.orange{background:linear-gradient(90deg,var(--orange),#FDBA74)}.bf.red{background:linear-gradient(90deg,var(--red),#FCA5A5)}
+/* Score gauge mini */
+.score-bar{display:inline-flex;align-items:center;gap:6px}
+.score-pip{width:8px;height:8px;border-radius:50%;display:inline-block}
+/* Two-column chart grid */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+@media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
+/* RAG indicators */
+.rag-R{background:rgba(239,68,68,.15);color:var(--red)}
+.rag-A{background:rgba(251,191,36,.15);color:var(--amber)}
+.rag-G{background:rgba(52,211,153,.15);color:var(--green)}
+/* Loading spinner */
+.loading{display:flex;align-items:center;justify-content:center;padding:60px;gap:12px;color:var(--t3);font-size:14px}
+.spin-ring{width:20px;height:20px;border:2px solid var(--bdr);border-top-color:var(--cyan);border-radius:50%;animation:sp 0.8s linear infinite}
+/* Modal */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:100;justify-content:center;align-items:center;padding:40px}
+.mo.open{display:flex}
+.ml{background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);width:100%;max-width:960px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.5)}
+.mh{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--bdr);position:sticky;top:0;background:var(--bg);z-index:2}
+.mh h3{font-size:17px;font-weight:700}
+.mc{background:none;border:1px solid var(--bdr);color:var(--t2);width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .2s}
+.mc:hover{border-color:var(--red);color:var(--red)}
+.mb{padding:24px}
+.mb table{width:100%}
+.ms{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.empty{text-align:center;padding:50px 20px;color:var(--t3)}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.detail-item{background:var(--card-a);border:1px solid var(--bdr);border-radius:8px;padding:12px 14px}
+.detail-item .di-l{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--t3);margin-bottom:4px}
+.detail-item .di-v{font-size:14px;color:var(--t1);font-weight:500}
+@media(max-width:768px){.hdr,.cnt,.tabs{padding-left:16px;padding-right:16px}.row{grid-template-columns:repeat(2,1fr)}.bl{width:90px}.banner{padding:10px 16px}.detail-grid{grid-template-columns:1fr}}
+@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}.an{animation:fi .35s ease-out forwards}
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div class="login-screen" id="loginScreen">
+  <h1>Progress Scope Dashboard</h1>
+  <p>Sign in with your Microsoft 365 account to connect to your SharePoint data.</p>
+  <button class="login-btn" id="loginBtn">Sign in with Microsoft</button>
+  <p style="font-size:12px;color:var(--t3);margin-top:10px">Connects to priceeasy1.sharepoint.com</p>
+</div>
+
+<!-- Dashboard (hidden until login) -->
+<div class="app" id="dashboard" style="display:none">
+  <div class="banner">
+    <span>⚙️</span><span>SharePoint Connection</span>
+    <code id="status" class="ok">Connecting…</code>
+    <span id="custStatus" style="margin-left:8px"></span>
+    <span class="ts" id="timer" style="margin-left:auto"></span>
+  </div>
+  <div class="hdr">
+    <div>
+      <h1>Progress Scope Dashboard</h1>
+      <p id="sub">Loading…</p>
+    </div>
+    <div class="hdr-r">
+      <button class="rbtn" id="refBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab on" data-tab="scopes">📊 Scopes by Category</div>
+    <div class="tab" data-tab="renewals">🔄 Renewals Pipeline</div>
+    <div class="tab" data-tab="customers">👥 Customer Master</div>
+  </div>
+
+  <!-- SCOPES TAB -->
+  <div class="cnt" id="scopesCnt">
+    <div class="row" id="sSummary"></div>
+
+    <!-- CS Tracker enriched KPIs (joined via ClientID) -->
+    <div id="csEnrichedWrap" style="display:none;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="font-size:13px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.6px">CS Tracker — Joined Data</span>
+        <span style="font-size:11px;color:var(--t3)" id="csMatchLabel"></span>
+      </div>
+      <!-- Activity & Implementation row -->
+      <div class="row" id="csKpiRow1"></div>
+      <!-- Stations row -->
+      <div class="row" id="csKpiRow2"></div>
+      <!-- Publishing & POC row -->
+      <div class="cs an" style="margin-bottom:0">
+        <h2 style="margin-bottom:14px">Implementation Stage &amp; Publishing Activity</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div><div style="font-size:12px;color:var(--t3);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px">Stage Breakdown</div><div id="csStageChart"></div></div>
+          <div><div style="font-size:12px;color:var(--t3);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px">Publishing Activity</div><div id="csPublishChart"></div></div>
+        </div>
+      </div>
+    </div>
+    <div id="csNoDataNote" style="display:none;margin-bottom:24px;padding:14px 20px;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);font-size:13px;color:var(--t3)">
+      ⏳ CS Tracker not yet loaded — switch to the 👥 Customer Master tab or wait for data to sync.
+    </div>
+
+    <div class="cs an"><h2>Scopes by Category — Comparison</h2><div id="sChart"></div></div>
+    <div class="ts-wrap an">
+      <div class="ts-hdr"><h2><span class="dot" style="background:var(--cyan)"></span> Scopes Detail</h2><div class="fg" id="sFilters"></div></div>
+      <div class="tw"><table><thead id="sTh"></thead><tbody id="sTb"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- RENEWALS TAB -->
+  <div class="cnt off" id="renewCnt">
+    <div class="row" id="rSummary"></div>
+    <div class="cs an"><h2>Renewals by Time Bucket</h2><div id="rChart"></div></div>
+    <div class="ts-wrap an">
+      <div class="ts-hdr"><h2><span class="dot" style="background:var(--amber)"></span> Renewals Detail</h2><div class="fg" id="rFilters"></div></div>
+      <div class="tw"><table><thead id="rTh"></thead><tbody id="rTb"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- CUSTOMERS TAB -->
+  <div class="cnt off" id="customersCnt">
+    <div id="custLoadingMsg" class="loading"><div class="spin-ring"></div> Loading Customer Master data…</div>
+    <div id="custContent" style="display:none">
+      <!-- KPI row -->
+      <div class="row" id="cSummary"></div>
+      <!-- Charts -->
+      <div class="chart-grid">
+        <div class="cs an"><h2>Health Distribution</h2><div id="cHealthChart"></div></div>
+        <div class="cs an"><h2>RAG Status Breakdown</h2><div id="cRagChart"></div></div>
+        <div class="cs an"><h2>Upsell Score Distribution</h2><div id="cUpsellChart"></div></div>
+        <div class="cs an"><h2>Churn Risk Distribution</h2><div id="cChurnChart"></div></div>
+      </div>
+      <!-- MRR by CSM -->
+      <div class="cs an"><h2>MRR Jan 2026 by CSM</h2><div id="cCsmChart"></div></div>
+      <!-- Table -->
+      <div class="ts-wrap an">
+        <div class="ts-hdr">
+          <h2><span class="dot" style="background:var(--violet)"></span> Customer Detail</h2>
+          <div class="fg">
+            <input class="search-box" id="custSearch" type="text" placeholder="Search customers…">
+            <div id="cFilters"></div>
+          </div>
+        </div>
+        <div class="tw"><table><thead id="cTh"></thead><tbody id="cTb"></tbody></table></div>
+      </div>
+    </div>
+    <div id="custErrorMsg" style="display:none" class="empty">
+      ⚠️ Could not load Customer Master file.<br>
+      <span style="font-size:12px;color:var(--t3);display:block;margin-top:8px" id="custErrorDetail"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Drill Modal -->
+<div class="mo" id="drillMo">
+  <div class="ml">
+    <div class="mh"><h3 id="drillT">Detail</h3><button class="mc" id="drillX">✕</button></div>
+    <div class="mb" id="drillB"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════
+var msalConfig = {
+  auth: {
+    clientId: "b3240d43-7574-4b22-8d96-f1704f7a1b76",
+    authority: "https://login.microsoftonline.com/c4d594d9-da13-487e-90a5-740ec76c61be",
+    redirectUri: "https://demizimmermann-dotcom.github.io/priceeasydashboard/"
+  },
+  cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: false }
+};
+
+var loginRequest = { scopes: ["https://priceeasy1.sharepoint.com/.default"] };
+var graphScopes = ["https://graph.microsoft.com/Files.Read", "https://graph.microsoft.com/Sites.Read"];
+var msalInstance = new msal.PublicClientApplication(msalConfig);
+var accessToken = null;
+
+// SharePoint list (existing)
+var SITE = 'https://priceeasy1.sharepoint.com/sites/AccountingFinance';
+var GUID = '47f480c2-eb0f-4408-b62a-b0b3d85d88e4';
+
+// Customer Master Excel file in SharePoint
+// UPDATE THIS PATH to match where the file lives in your SharePoint.
+// Common paths: '/sites/AccountingFinance/Shared Documents/Customer Master and Tracker (All Teams).xlsx'
+// or '/Shared Documents/General/Customer Master and Tracker (All Teams).xlsx'
+var CUST_SITE = 'https://priceeasy1.sharepoint.com/sites/AccountingFinance';
+var CUST_FILE_PATH = '/sites/AccountingFinance/Shared Documents/Customer Master and Tracker (All Teams).xlsx';
+// Sheet name — update if your main sheet has a different name
+var CUST_SHEET = 'Sheet1';
+
+// ═══════════════════════════════════════════════════════════
+//  DATA STORES
+// ═══════════════════════════════════════════════════════════
+var D = []; // scopes list data
+var C = []; // customer master data
+var curTab = 'scopes', sF = 'all', rF = 'all', cF = 'all', cSearch = '';
+
+// ═══════════════════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════════════════
+msalInstance.handleRedirectPromise().then(function(resp) {
+  if (resp) {
+    // Could be SharePoint login OR Graph consent redirect
+    var isGraphConsent = resp.scopes && resp.scopes.some(function(s){ return s.includes('graph.microsoft.com'); });
+    if (isGraphConsent) {
+      // Graph consent completed — dashboard already shown, just fetch customer data
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      sessionStorage.removeItem('needsCustFetch');
+      doGraphFetch(resp.accessToken);
+    } else {
+      accessToken = resp.accessToken;
+      showDashboard();
+    }
+  } else {
+    var accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      msalInstance.acquireTokenSilent({ scopes: loginRequest.scopes, account: accounts[0] })
+        .then(function(tokenResp) {
+          accessToken = tokenResp.accessToken;
+          showDashboard();
+        })
+        .catch(function() {});
+    }
+  }
+}).catch(function(err) { console.error('Redirect error:', err); });
+
+document.getElementById('loginBtn').addEventListener('click', function() {
+  msalInstance.loginRedirect(loginRequest);
+});
+
+function showDashboard() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  fetchData();
+  fetchCustomerData();
+  startAutoRefresh();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SCOPES LIST FETCH (existing)
+// ═══════════════════════════════════════════════════════════
+function fetchData() {
+  var url = SITE + "/_api/web/lists(guid'" + GUID + "')/items?$top=5000&$select=*";
+  var headers = { 'Accept': 'application/json;odata=verbose' };
+  if (accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
+
+  return fetch(url, { headers: headers, credentials: accessToken ? 'omit' : 'include' })
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(j) {
+      var rows = (j.d && j.d.results) ? j.d.results : (j.value || []);
+      D = rows.map(parseRow);
+      setStatus(true, D.length + ' records');
+      renderAll();
+      updateTime();
+    })
+    .catch(function(e) {
+      console.error('Fetch error:', e);
+      setStatus(false, 'Error: ' + e.message);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CUSTOMER MASTER EXCEL FETCH (new)
+// Uses SharePoint REST API to read Excel file via /_api/web/GetFileByServerRelativeUrl
+// then reads table rows using /_api/web/lists approach on the workbook
+// ═══════════════════════════════════════════════════════════
+// File UniqueId from SharePoint embed link
+var CUST_FILE_GUID = '6b85d56a-1ad8-4dac-a1b4-6466ca6a4f80';
+
+function fetchCustomerData() {
+  if (!accessToken) return;
+  findFilePathViaSPSearch();
+}
+
+function findFilePathViaSPSearch() {
+  var h = {
+    'Accept': 'application/json;odata=verbose',
+    'Authorization': 'Bearer ' + accessToken
+  };
+  var searchUrl = "https://priceeasy1.sharepoint.com/_api/search/query?querytext='Customer+Master+and+Tracker'&selectproperties='Path,Title,FileExtension'&rowlimit=10";
+
+  fetch(searchUrl, { headers: h })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var rows = d.d.query.PrimaryQueryResult.RelevantResults.Table.Rows.results;
+      console.log('=== FILE SEARCH RESULTS ===');
+      rows.forEach(function(r) {
+        var cells = r.Cells.results;
+        var path = cells.find(function(c) { return c.Key === 'Path'; });
+        if (path) console.log(path.Value);
+      });
+
+      var xlsxPath = rows.map(function(r) {
+        var cells = r.Cells.results;
+        var path = cells.find(function(c) { return c.Key === 'Path'; });
+        return path ? path.Value : '';
+      }).find(function(p) {
+        return p.toLowerCase().includes('customer master') && p.toLowerCase().includes('xlsx');
+      });
+
+      if (xlsxPath) {
+        console.log('=== AUTO-USING PATH:', xlsxPath, '===');
+        var serverRelUrl = xlsxPath.replace('https://priceeasy1.sharepoint.com', '');
+        var site = serverRelUrl.indexOf('/sites/') === 0
+          ? 'https://priceeasy1.sharepoint.com' + serverRelUrl.substring(0, serverRelUrl.indexOf('/', 8))
+          : 'https://priceeasy1.sharepoint.com';
+        fetchCustomerViaSP(serverRelUrl, site);
+      } else {
+        fetchCustomerViaSP(null, null);
+      }
+    })
+    .catch(function() {
+      fetchCustomerViaSP(null, null);
+    });
+}
+
+function fetchCustomerViaSP(knownPath, knownSite) {
+  var h = {
+    'Accept': 'application/json;odata=verbose',
+    'Authorization': 'Bearer ' + accessToken
+  };
+
+  if (knownPath) {
+    return readExcelViaSpExcel(knownPath, knownSite || 'https://priceeasy1.sharepoint.com')
+      .catch(function(e) {
+        console.error('Customer fetch error:', e);
+        setCustStatus(false, 'Customers: ' + e.message);
+        showCustError(e.message);
+      });
+  }
+
+  var fileName = "Customer Master and Tracker (All Teams).xlsx";
+  var candidatePaths = [
+    "/Shared Documents/" + fileName,
+    "/Shared Documents/General/" + fileName,
+    "/sites/AccountingFinance/Shared Documents/" + fileName,
+    "/sites/AccountingFinance/Shared Documents/General/" + fileName,
+    "/sites/Operations/Shared Documents/" + fileName,
+    "/Documents/" + fileName,
+    "/General/" + fileName
+  ];
+
+  function tryPath(i) {
+    if (i >= candidatePaths.length) {
+      // Last resort: GUID lookup
+      var guidUrl = "https://priceeasy1.sharepoint.com/_api/web/GetFileById(guid'" + CUST_FILE_GUID + "')?$select=ServerRelativeUrl";
+      return fetch(guidUrl, { headers: h })
+        .then(function(r) {
+          if (!r.ok) throw new Error('File not found anywhere (tried ' + candidatePaths.length + ' paths + GUID). Status: ' + r.status);
+          return r.json();
+        })
+        .then(function(d) {
+          var p = d.d ? d.d.ServerRelativeUrl : d.ServerRelativeUrl;
+          if (!p) throw new Error('GUID lookup returned no path');
+          var site = p.indexOf('/sites/') === 0
+            ? 'https://priceeasy1.sharepoint.com' + p.substring(0, p.indexOf('/', 8))
+            : 'https://priceeasy1.sharepoint.com';
+          console.log('GUID lookup found path:', p);
+          return readExcelViaSpExcel(p, site);
+        });
+    }
+    var path = candidatePaths[i];
+    var site = path.indexOf('/sites/') === 0
+      ? 'https://priceeasy1.sharepoint.com' + path.substring(0, path.indexOf('/', 8))
+      : 'https://priceeasy1.sharepoint.com';
+    var checkUrl = site + "/_api/web/GetFileByServerRelativeUrl('" + path.replace(/'/g, "''") + "')?$select=ServerRelativeUrl,Exists";
+    console.log('Trying:', path);
+    return fetch(checkUrl, { headers: h })
+      .then(function(r) {
+        if (!r.ok) return tryPath(i + 1);
+        return r.json().then(function(d) {
+          var info = d.d || d;
+          if (!info.Exists) return tryPath(i + 1);
+          console.log('Found at:', path);
+          return readExcelViaSpExcel(path, site);
+        });
+      })
+      .catch(function() { return tryPath(i + 1); });
+  }
+
+  tryPath(0).catch(function(e) {
+    console.error('Customer fetch error:', e);
+    setCustStatus(false, 'Customers: ' + e.message);
+    showCustError(e.message);
+  });
+}
+
+function readExcelViaSpExcel(serverRelUrl, fileSite) {
+  fileSite = fileSite || 'https://priceeasy1.sharepoint.com';
+  var h = {
+    'Accept': 'application/json;odata=verbose',
+    'Authorization': 'Bearer ' + accessToken
+  };
+  var sheetNames = ['All Teams', 'Sheet1', 'Customer Master', 'Customers', 'Data'];
+  var encoded = encodeURIComponent(serverRelUrl);
+
+  function trySheet(i) {
+    if (i >= sheetNames.length) {
+      var sheetsUrl = fileSite + "/_api/v2.1/drives/root:/getByUrl('" + encoded + "')/workbook/worksheets";
+      return fetch(sheetsUrl, { headers: h })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          var name = d.value && d.value[0] ? d.value[0].name : 'Sheet1';
+          return fetchSheetRange(serverRelUrl, name, fileSite);
+        });
+    }
+    return fetchSheetRange(serverRelUrl, sheetNames[i], fileSite)
+      .catch(function() { return trySheet(i + 1); });
+  }
+
+  return trySheet(0)
+    .then(function(values) {
+      // Handle ExcelRest $grid format: array of arrays where each cell is {Value:..}
+      // or plain 2D array from v2.1 API
+      if (!values || values.length < 2) throw new Error('No data found in workbook');
+
+      // Normalize: if cells are objects with .Value, extract them
+      var normalized = values.map(function(row) {
+        if (!Array.isArray(row)) return [];
+        return row.map(function(cell) {
+          if (cell === null || cell === undefined) return '';
+          if (typeof cell === 'object' && cell !== null && 'Value' in cell) return cell.Value;
+          return cell;
+        });
+      });
+
+      var hdrs = normalized[0].map(function(h) { return (h || '').toString().trim(); });
+      C = [];
+      for (var i = 1; i < normalized.length; i++) {
+        var row = normalized[i];
+        var obj = {};
+        hdrs.forEach(function(h, idx) { obj[h] = row[idx] !== undefined ? row[idx] : ''; });
+        if (obj['CUSTOMER_NAME'] || obj['QB_ID']) C.push(parseCustRow(obj));
+      }
+      setCustStatus(true, C.length + ' customers');
+      showCustContent();
+    })
+    .catch(function(e) {
+      console.error('Customer fetch error:', e);
+      setCustStatus(false, 'Customers: ' + e.message);
+      showCustError(e.message);
+    });
+}
+
+function fetchSheetRange(serverRelUrl, sheetName, fileSite) {
+  fileSite = fileSite || 'https://priceeasy1.sharepoint.com';
+  var h = {
+    'Accept': 'application/json;odata=verbose',
+    'Authorization': 'Bearer ' + accessToken
+  };
+
+  // Try SharePoint Excel Services REST API (/_api/SP.File approach)
+  // Encode the server-relative URL for use in the query string
+  var encodedUrl = encodeURIComponent(serverRelUrl);
+  var encodedSheet = encodeURIComponent(sheetName);
+
+  // Method 1: Excel Services getrange
+  var url1 = fileSite + "/_api/web/GetFileByServerRelativeUrl('" +
+    serverRelUrl.replace(/'/g, "''") + "')/getlimitedwebpartmanager(scope=1)";
+
+  // Use ExcelRest endpoint which works with SharePoint token
+  var excelRestUrl = 'https://priceeasy1.sharepoint.com/_vti_bin/ExcelRest.aspx' +
+    serverRelUrl + '/Model/Ranges('' + encodedSheet + '!A1:ZZ10000')?$format=json';
+
+  return fetch(excelRestUrl, { headers: h })
+    .then(function(r) {
+      if (!r.ok) throw new Error('ExcelRest failed: ' + r.status);
+      return r.json();
+    })
+    .then(function(d) {
+      // ExcelRest returns rows in d['$grid']
+      if (d && d['$grid']) return d['$grid'];
+      throw new Error('No grid data in ExcelRest response');
+    })
+    .catch(function() {
+      // Fallback: try /_api/v2.1 endpoint
+      var url2 = fileSite + "/_api/v2.1/drives/root:/getByUrl('" +
+        encodedUrl + "'):/workbook/worksheets('" + encodedSheet + "')/usedRange";
+      return fetch(url2, { headers: h })
+        .then(function(r) { if (!r.ok) throw new Error('Sheet ' + sheetName + ' failed: ' + r.status); return r.json(); })
+        .then(function(d) { return d.values || (d.d && d.d.values); });
+    });
+}
+
+function parseCustRow(r) {
+  return {
+    qbId: r['QB_ID'] || '',
+    custId: r['CUSTOMER_ID'] || '',
+    name: r['CUSTOMER_NAME'] || 'Unknown',
+    ba1: r['BA 1'] || '',
+    ba2: r['BA 2'] || '',
+    csm: r['CSM'] || '',
+    activity: r['ACTIVITY'] || '',
+    sentiment: r['SENTIMENT'] || '',
+    upsellScore: parseFloat(r['UPSELL_SCORE']) || 0,
+    churnScore: parseFloat(r['CHURN_SCORE']) || 0,
+    upsellComments: r['UPSELL_COMMENTS'] || '',
+    churnComments: r['CHURN_COMMENTS'] || '',
+    mrrDec: parseFloat(r['MRR Dec']) || 0,
+    mrrJan: parseFloat(r['MRR JAN 2026']) || 0,
+    contractDate: r['CONTRACT DATE'] ? new Date(r['CONTRACT DATE']) : null,
+    renewalDate: r['RENEWAL DATE'] ? new Date(r['RENEWAL DATE']) : null,
+    arOutstanding: parseFloat(r['AR Outstanding']) || 0,
+    arOutstandingJan: parseFloat(r['AR Outstanding JAN-26']) || 0,
+    totalStations: parseInt(r['TOTAL_STATIONS']) || 0,
+    activeStations: parseInt(r['ACTIVE_STATIONS']) || 0,
+    inactiveStations: parseInt(r['INACTIVE_STATIONS']) || 0,
+    stage: r['Stage'] || '',
+    pocEnd: r['End of POC'] || r['POC End'] || r['EndDays inEnd of POCSite Mapping'] || '',
+    rag: r['RAG'] || '',
+    implScore: parseFloat(r['IMPLEMENTATION_SCORE']) || 0,
+    posType: r['POS TYPE'] || '',
+    health: r['Health'] || '',
+    latestUpdate: r['Latest Update'] || '',
+    upsellOpportunity: r['UPSELL OPPORTUNITY BASED ON AI'] || '',
+    competitor: r['COMPETITOR_PRICE_QUALITY'] || '',
+    pctWithCost: parseFloat(r['PCT_STATIONS_WITH_COST']) || 0,
+    pctWithMargin: parseFloat(r['PCT_STATIONS_WITH_MARGIN']) || 0,
+    pctWithVolume: parseFloat(r['PCT_STATIONS_WITH_VOLUME']) || 0,
+    ruleScore: parseFloat(r['RULE_SOPHISTICATION_SCORE']) || 0,
+    publishActivity: r['PUBLISH_ACTIVITY'] || '',
+    lastActivity: r['LAST_ACTIVITY_ON'] || '',
+    platform: r['FUEL_PLATFORM'] || ''
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CUSTOMER RENDER
+// ═══════════════════════════════════════════════════════════
+function renderCustomers() {
+  rCS(); rCCharts(); rCF(); rCT();
+}
+
+function rCS() {
+  var totalMrr = 0, totalAr = 0, highChurn = 0, highUpsell = 0;
+  C.forEach(function(c) {
+    totalMrr += c.mrrJan;
+    totalAr += c.arOutstandingJan;
+    if (c.churnScore >= 7) highChurn++;
+    if (c.upsellScore >= 7) highUpsell++;
+  });
+  var ragCounts = {R:0,A:0,G:0};
+  C.forEach(function(c){ var r=c.rag?c.rag[0].toUpperCase():''; if(ragCounts[r]!==undefined)ragCounts[r]++; });
+  var cards = [
+    {l:'Total Customers', v:C.length, s:'Active in tracker', a:'cyan'},
+    {l:'MRR Jan 2026', v:$(totalMrr), s:'Total monthly recurring', a:'green'},
+    {l:'AR Outstanding', v:$(totalAr), s:'Jan 2026', a:'amber'},
+    {l:'High Churn Risk', v:highChurn, s:'Score ≥ 7', a:'red'},
+    {l:'Upsell Opportunities', v:highUpsell, s:'Score ≥ 7', a:'violet'},
+    {l:'Red RAG Status', v:ragCounts.R, s:ragCounts.A+' amber · '+ragCounts.G+' green', a:'rose'}
+  ];
+  document.getElementById('cSummary').innerHTML = cards.map(function(c) {
+    return '<div class="sc an" data-a="'+c.a+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb">'+c.s+'</div></div>';
+  }).join('');
+}
+
+function rCCharts() {
+  // Health Distribution
+  var healthMap = {};
+  C.forEach(function(c) { var h=c.health||'Unknown'; healthMap[h]=(healthMap[h]||0)+1; });
+  var hColors = {Green:'green',Yellow:'amber',Red:'red',Unknown:'violet'};
+  var healthHtml = '', hMax = Math.max.apply(null, Object.values(healthMap)) || 1;
+  Object.keys(healthMap).sort().forEach(function(k,i) {
+    var col = hColors[k] || CL[i%CL.length];
+    healthHtml += '<div class="br"><div class="bl">'+k+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(healthMap[k]/hMax*100,8)+'%">'+healthMap[k]+'</div></div></div>';
+  });
+  document.getElementById('cHealthChart').innerHTML = healthHtml || '<div class="empty">No health data</div>';
+
+  // RAG
+  var ragMap = {Red:0,Amber:0,Green:0};
+  C.forEach(function(c) {
+    var r=c.rag||'';
+    if(r.toLowerCase().includes('red')||r==='R')ragMap.Red++;
+    else if(r.toLowerCase().includes('amber')||r==='A')ragMap.Amber++;
+    else if(r.toLowerCase().includes('green')||r==='G')ragMap.Green++;
+  });
+  var ragMax = Math.max(ragMap.Red,ragMap.Amber,ragMap.Green,1);
+  var ragHtml = [
+    {k:'Red',c:'red'},{k:'Amber',c:'amber'},{k:'Green',c:'green'}
+  ].map(function(r){
+    return '<div class="br"><div class="bl">'+r.k+'</div><div class="bt"><div class="bf '+r.c+'" style="width:'+Math.max(ragMap[r.k]/ragMax*100,8)+'%">'+ragMap[r.k]+'</div></div></div>';
+  }).join('');
+  document.getElementById('cRagChart').innerHTML = ragHtml;
+
+  // Upsell score buckets
+  var uBuckets = {'0-3':0,'4-6':0,'7-8':0,'9-10':0};
+  C.forEach(function(c){
+    var s=c.upsellScore;
+    if(s<=3)uBuckets['0-3']++;
+    else if(s<=6)uBuckets['4-6']++;
+    else if(s<=8)uBuckets['7-8']++;
+    else uBuckets['9-10']++;
+  });
+  var uMax=Math.max.apply(null,Object.values(uBuckets))||1;
+  var uColors=['green','cyan','amber','violet'];
+  document.getElementById('cUpsellChart').innerHTML=Object.keys(uBuckets).map(function(k,i){
+    return '<div class="br"><div class="bl">Score '+k+'</div><div class="bt"><div class="bf '+uColors[i]+'" style="width:'+Math.max(uBuckets[k]/uMax*100,8)+'%">'+uBuckets[k]+'</div></div></div>';
+  }).join('');
+
+  // Churn score buckets
+  var cBuckets = {'0-3':0,'4-6':0,'7-8':0,'9-10':0};
+  C.forEach(function(c){
+    var s=c.churnScore;
+    if(s<=3)cBuckets['0-3']++;
+    else if(s<=6)cBuckets['4-6']++;
+    else if(s<=8)cBuckets['7-8']++;
+    else cBuckets['9-10']++;
+  });
+  var cMax=Math.max.apply(null,Object.values(cBuckets))||1;
+  var cColors=['green','amber','orange','red'];
+  document.getElementById('cChurnChart').innerHTML=Object.keys(cBuckets).map(function(k,i){
+    return '<div class="br"><div class="bl">Risk '+k+'</div><div class="bt"><div class="bf '+cColors[i]+'" style="width:'+Math.max(cBuckets[k]/cMax*100,8)+'%">'+cBuckets[k]+'</div></div></div>';
+  }).join('');
+
+  // MRR by CSM
+  var csmMap = {};
+  C.forEach(function(c){ if(c.csm){csmMap[c.csm]=(csmMap[c.csm]||0)+c.mrrJan;} });
+  var csmSorted=Object.keys(csmMap).sort(function(a,b){return csmMap[b]-csmMap[a]});
+  var csmMax=csmMap[csmSorted[0]]||1;
+  document.getElementById('cCsmChart').innerHTML=csmSorted.slice(0,15).map(function(k,i){
+    return '<div class="br"><div class="bl" style="width:160px">'+k+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(csmMap[k]/csmMax*100,8)+'%">'+$(csmMap[k])+'</div></div></div>';
+  }).join('') || '<div class="empty">No CSM data</div>';
+}
+
+function rCF() {
+  var stages = ['all'];
+  C.forEach(function(c){ if(c.stage && stages.indexOf(c.stage)===-1) stages.push(c.stage); });
+  document.getElementById('cFilters').innerHTML = stages.slice(0,8).map(function(s){
+    return '<button class="fb'+(cF===s?' on':'')+'" data-cf="'+s+'">'+(s==='all'?'All Stages':s)+'</button>';
+  }).join('');
+}
+
+function rCT() {
+  var filtered = C;
+  if (cF !== 'all') filtered = filtered.filter(function(c){ return c.stage===cF; });
+  if (cSearch) {
+    var q = cSearch.toLowerCase();
+    filtered = filtered.filter(function(c){ return c.name.toLowerCase().includes(q) || c.csm.toLowerCase().includes(q) || c.custId.toLowerCase().includes(q); });
+  }
+  filtered = filtered.slice().sort(function(a,b){ return b.mrrJan-a.mrrJan; });
+
+  document.getElementById('cTh').innerHTML = '<tr><th>Customer</th><th>CSM</th><th>Stage</th><th>MRR Jan</th><th>Churn Risk</th><th>Upsell</th><th>RAG</th><th>Health</th><th>Stations</th></tr>';
+  document.getElementById('cTb').innerHTML = filtered.slice(0,80).map(function(c){
+    var churnCol = c.churnScore>=7?'red':c.churnScore>=4?'amber':'green';
+    var upCol = c.upsellScore>=7?'violet':c.upsellScore>=4?'cyan':'blue';
+    var ragCls = c.rag?(c.rag.toLowerCase().includes('red')||c.rag==='R'?'rag-R':c.rag.toLowerCase().includes('amber')||c.rag==='A'?'rag-A':'rag-G'):'';
+    var healthCol = c.health==='Green'?'green':c.health==='Red'?'red':c.health==='Yellow'?'amber':'violet';
+    return '<tr data-cid="'+c.custId+'">' +
+      '<td>'+c.name+'</td>' +
+      '<td>'+c.csm+'</td>' +
+      '<td>'+(c.stage?'<span class="bd bd-cyan">'+c.stage+'</span>':'—')+'</td>' +
+      '<td>'+$(c.mrrJan)+'</td>' +
+      '<td><span class="bd bd-'+churnCol+'">'+c.churnScore.toFixed(1)+'</span></td>' +
+      '<td><span class="bd bd-'+upCol+'">'+c.upsellScore.toFixed(1)+'</span></td>' +
+      '<td>'+(c.rag?'<span class="bd '+ragCls+'">'+c.rag+'</span>':'—')+'</td>' +
+      '<td>'+(c.health?'<span class="bd bd-'+healthCol+'">'+c.health+'</span>':'—')+'</td>' +
+      '<td>'+c.activeStations+' / '+c.totalStations+'</td>' +
+      '</tr>';
+  }).join('') || '<tr><td colspan="9"><div class="empty">No customers found.</div></td></tr>';
+}
+
+function drillCustomer(custId) {
+  var c; C.forEach(function(x){ if(x.custId===custId)c=x; });
+  if(!c) return;
+  document.getElementById('drillT').textContent = c.name;
+  document.getElementById('drillB').innerHTML =
+    '<div class="detail-grid">' +
+      dItem('Customer ID', c.custId) +
+      dItem('QB ID', c.qbId) +
+      dItem('CSM', c.csm) +
+      dItem('BA 1', c.ba1) +
+      dItem('BA 2', c.ba2) +
+      dItem('Stage', c.stage) +
+      dItem('Health', c.health) +
+      dItem('RAG', c.rag) +
+      dItem('Upsell Score', c.upsellScore.toFixed(1)) +
+      dItem('Churn Score', c.churnScore.toFixed(1)) +
+      dItem('MRR Dec', $(c.mrrDec)) +
+      dItem('MRR Jan 2026', $(c.mrrJan)) +
+      dItem('AR Outstanding', $(c.arOutstanding)) +
+      dItem('AR Outstanding Jan-26', $(c.arOutstandingJan)) +
+      dItem('Total Stations', c.totalStations) +
+      dItem('Active Stations', c.activeStations) +
+      dItem('Inactive Stations', c.inactiveStations) +
+      dItem('Platform', c.platform) +
+      dItem('POS Type', c.posType) +
+      dItem('Rule Score', c.ruleScore.toFixed(1)) +
+      dItem('Impl. Score', c.implScore.toFixed(1)) +
+      dItem('Last Activity', c.lastActivity) +
+      dItem('Contract Date', c.contractDate ? fd(c.contractDate) : '—') +
+      dItem('Renewal Date', c.renewalDate ? fd(c.renewalDate) : '—') +
+    '</div>' +
+    (c.upsellComments ? '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">UPSELL COMMENTS</div><div style="font-size:13px;color:var(--t2)">'+c.upsellComments+'</div></div>' : '') +
+    (c.churnComments ? '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">CHURN COMMENTS</div><div style="font-size:13px;color:var(--t2)">'+c.churnComments+'</div></div>' : '') +
+    (c.latestUpdate ? '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t3);margin-bottom:4px">LATEST UPDATE</div><div style="font-size:13px;color:var(--t2)">'+c.latestUpdate+'</div></div>' : '') +
+    (c.upsellOpportunity ? '<div><div style="font-size:11px;color:var(--t3);margin-bottom:4px">AI UPSELL OPPORTUNITY</div><div style="font-size:13px;color:var(--violet)">'+c.upsellOpportunity+'</div></div>' : '');
+  document.getElementById('drillMo').classList.add('open');
+}
+
+function dItem(label, val) {
+  return '<div class="detail-item"><div class="di-l">'+label+'</div><div class="di-v">'+(val||'—')+'</div></div>';
+}
+
+function showCustContent() {
+  document.getElementById('custLoadingMsg').style.display = 'none';
+  document.getElementById('custErrorMsg').style.display = 'none';
+  document.getElementById('custContent').style.display = 'block';
+  // Re-render Scopes tab CS enrichment now that customer data is available
+  rSSEnriched();
+  if (curTab === 'customers') renderCustomers();
+}
+
+function showCustError(msg) {
+  document.getElementById('custLoadingMsg').style.display = 'none';
+  document.getElementById('custContent').style.display = 'none';
+  document.getElementById('custErrorMsg').style.display = 'block';
+  document.getElementById('custErrorDetail').textContent = msg + ' — Check that CUST_FILE_PATH in the code matches where the file is stored in SharePoint.';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EXISTING SCOPE/RENEWAL HELPERS
+// ═══════════════════════════════════════════════════════════
+function parseRow(item) {
+  var eff = item.ContractEffectiveDate ? new Date(item.ContractEffectiveDate) : null;
+  var termRaw = item.ContractTerm || '';
+  var m = termRaw.match(/(\d+)/);
+  var tm = m ? parseInt(m[1]) : 12;
+  var end = null;
+  if (eff) { end = new Date(eff.getTime()); end.setMonth(end.getMonth() + tm); }
+  return {
+    id: item.Id || item.ID,
+    title: item.SalesRequestID || '',
+    client: item.LegalClientName || 'Unknown',
+    clientId: item.ClientID || '',
+    scope: item.Scope || 'Uncategorized',
+    clientType: item.ClientType || '',
+    term: termRaw, termMonths: tm,
+    effectiveDate: eff, endDate: end,
+    value: parseFloat(item.TotalARR) || 0,
+    equipment: parseFloat(item.TotalEquipment) || 0,
+    status: item.Status || '',
+    autoRenewal: item.AutoRenewal || '',
+    currency: item.Currency || 'USD',
+    siteQty: parseInt(item.CurrentSiteQty) || 0,
+    created: item.Created ? new Date(item.Created) : new Date()
+  };
+}
+
+function mr(o){var n=new Date(),s=new Date(n.getFullYear(),n.getMonth()+o,1),e=new Date(n.getFullYear(),n.getMonth()+o+1,0,23,59,59);return{s:s,e:e}}
+function ytd(){var n=new Date();return{s:new Date(n.getFullYear(),0,1),e:n}}
+function du(d){if(!d)return Infinity;var n=new Date();n.setHours(0,0,0,0);var t=new Date(d);t.setHours(0,0,0,0);return Math.ceil((t-n)/864e5)}
+function bk(d){var x=du(d);if(x<0)return null;if(x<=30)return'0-30';if(x<=60)return'31-60';if(x<=90)return'61-90';return'90+';}
+function $(v){return'$'+v.toLocaleString('en-US',{maximumFractionDigits:0})}
+function fd(d){return d?d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'}
+var MO=['January','February','March','April','May','June','July','August','September','October','November','December'];
+var CL=['blue','cyan','green','amber','rose','violet','orange'];
+function bc(s){return CL[(s||'').length%CL.length]}
+function sc(s){return{Active:'green',Signed:'blue',Pending:'amber','In Review':'violet','Pending Review':'violet',Draft:'cyan'}[s]||'cyan'}
+function setStatus(ok,msg){var e=document.getElementById('status');e.textContent=ok?'✓ '+msg:'✗ '+msg;e.className=ok?'ok':'err'}
+function setCustStatus(ok,msg){var e=document.getElementById('custStatus');e.innerHTML=ok?'<code class="ok">👥 '+msg+'</code>':'<code class="warn">⚠️ '+msg+'</code>';}
+function updateTime(){document.getElementById('timer').textContent='Updated '+new Date().toLocaleTimeString()}
+
+// ═══════════════════════════════════════════════════════════
+//  CS TRACKER JOIN HELPER
+//  Joins D (scopes list) → C (customer tracker) via ClientID ↔ CUSTOMER_ID
+// ═══════════════════════════════════════════════════════════
+
+// Build a lookup map from CUSTOMER_ID → CS tracker row
+function buildCsMap() {
+  var map = {};
+  C.forEach(function(c) { if (c.custId) map[String(c.custId).trim().toLowerCase()] = c; });
+  return map;
+}
+
+// For a given scope record, return its CS tracker row (or null)
+function getCsData(scopeRow) {
+  if (!C.length) return null;
+  var map = buildCsMap();
+  var key = String(scopeRow.clientId || '').trim().toLowerCase();
+  return key ? (map[key] || null) : null;
+}
+
+// Render the enriched CS KPI section on the Scopes tab
+function rSSEnriched() {
+  var wrap = document.getElementById('csEnrichedWrap');
+  var noData = document.getElementById('csNoDataNote');
+
+  if (!C.length) {
+    wrap.style.display = 'none';
+    noData.style.display = 'block';
+    return;
+  }
+  noData.style.display = 'none';
+
+  var map = buildCsMap();
+
+  // Find which scope records have a CS match
+  var matched = D.filter(function(d) {
+    return d.clientId && map[String(d.clientId).trim().toLowerCase()];
+  });
+  var matchedCsRows = [];
+  matched.forEach(function(d) {
+    var cs = map[String(d.clientId).trim().toLowerCase()];
+    if (matchedCsRows.indexOf(cs) === -1) matchedCsRows.push(cs);
+  });
+
+  document.getElementById('csMatchLabel').textContent =
+    matchedCsRows.length + ' unique clients matched across ' + matched.length + ' scope records';
+
+  // ── KPI Row 1: Activity & Team ──────────────────────────────
+  var actMap = {};
+  matchedCsRows.forEach(function(c) { var a = c.activity || 'Unknown'; actMap[a] = (actMap[a]||0)+1; });
+  var topActivity = Object.keys(actMap).sort(function(a,b){return actMap[b]-actMap[a]})[0] || '—';
+
+  // CSM coverage
+  var csmSet = {};
+  matchedCsRows.forEach(function(c){ if(c.csm) csmSet[c.csm]=true; });
+  var csmCount = Object.keys(csmSet).length;
+
+  // BA coverage
+  var baSet = {};
+  matchedCsRows.forEach(function(c){ if(c.ba1) baSet[c.ba1]=true; if(c.ba2) baSet[c.ba2]=true; });
+  var baCount = Object.keys(baSet).length;
+
+  // IM coverage — using ba1 as IM field per user request
+  var imSet = {};
+  matchedCsRows.forEach(function(c){ if(c.ba1) imSet[c.ba1]=true; });
+  var imCount = Object.keys(imSet).length;
+
+  document.getElementById('csKpiRow1').innerHTML = [
+    {l:'Matched Clients', v:matchedCsRows.length, s:matched.length+' scope records', a:'cyan'},
+    {l:'CSMs Assigned', v:csmCount, s:'Across matched clients', a:'blue'},
+    {l:'BAs Assigned', v:baCount, s:'BA1 + BA2 combined', a:'violet'},
+    {l:'Top Activity', v:topActivity, s:actMap[topActivity]+' clients', a:'amber'}
+  ].map(function(c){
+    return '<div class="sc an" data-a="'+c.a+'"><div class="lb">'+c.l+'</div><div class="vl" style="font-size:'+(c.v.toString().length>6?'18px':'28px')+'">'+c.v+'</div><div class="sb">'+c.s+'</div></div>';
+  }).join('');
+
+  // ── KPI Row 2: Stations ──────────────────────────────────────
+  var totalActive = 0, totalInactive = 0, pocDone = 0, pocPending = 0;
+  matchedCsRows.forEach(function(c){
+    totalActive += c.activeStations;
+    totalInactive += c.inactiveStations;
+    if (c.pocEnd) {
+      var pocDate = new Date(c.pocEnd);
+      if (!isNaN(pocDate)) { if (pocDate < new Date()) pocDone++; else pocPending++; }
+    }
+  });
+  var activePct = (totalActive + totalInactive) > 0
+    ? Math.round(totalActive / (totalActive + totalInactive) * 100) : 0;
+
+  document.getElementById('csKpiRow2').innerHTML = [
+    {l:'Active Stations', v:totalActive.toLocaleString(), s:activePct+'% of total', a:'green'},
+    {l:'Inactive Stations', v:totalInactive.toLocaleString(), s:(100-activePct)+'% of total', a:'red'},
+    {l:'POC Completed', v:pocDone, s:'End date passed', a:'cyan'},
+    {l:'POC In Progress', v:pocPending, s:'End date upcoming', a:'orange'}
+  ].map(function(c){
+    return '<div class="sc an" data-a="'+c.a+'"><div class="lb">'+c.l+'</div><div class="vl" style="font-size:'+(c.v.toString().length>6?'18px':'28px')+'">'+c.v+'</div><div class="sb">'+c.s+'</div></div>';
+  }).join('');
+
+  // ── Stage Breakdown Chart ────────────────────────────────────
+  var stageMap = {};
+  matchedCsRows.forEach(function(c){ var s=c.stage||'Unknown'; stageMap[s]=(stageMap[s]||0)+1; });
+  var stageMax = Math.max.apply(null, Object.values(stageMap).concat([1]));
+  document.getElementById('csStageChart').innerHTML = Object.keys(stageMap)
+    .sort(function(a,b){return stageMap[b]-stageMap[a]})
+    .map(function(s,i){
+      return '<div class="br"><div class="bl" style="width:110px;font-size:11px">'+s+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(stageMap[s]/stageMax*100,8)+'%">'+stageMap[s]+'</div></div></div>';
+    }).join('') || '<div class="empty" style="padding:20px">No stage data</div>';
+
+  // ── Publishing Activity Chart ────────────────────────────────
+  var pubMap = {};
+  matchedCsRows.forEach(function(c){ var p=c.publishActivity||'Unknown'; pubMap[p]=(pubMap[p]||0)+1; });
+  var pubMax = Math.max.apply(null, Object.values(pubMap).concat([1]));
+  var pubColors = {High:'green', Medium:'cyan', Low:'amber', None:'red', Unknown:'violet'};
+  document.getElementById('csPublishChart').innerHTML = Object.keys(pubMap)
+    .sort(function(a,b){return pubMap[b]-pubMap[a]})
+    .map(function(p,i){
+      var col = pubColors[p] || CL[i%CL.length];
+      return '<div class="br"><div class="bl" style="width:110px;font-size:11px">'+p+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(pubMap[p]/pubMax*100,8)+'%">'+pubMap[p]+'</div></div></div>';
+    }).join('') || '<div class="empty" style="padding:20px">No publish data</div>';
+
+  wrap.style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SCOPES + RENEWALS RENDER (unchanged from original)
+// ═══════════════════════════════════════════════════════════
+function renderAll(){
+  var n=new Date();
+  document.getElementById('sub').textContent=D.length+' scopes · '+(C.length?C.length+' customers · ':'')+MO[n.getMonth()]+' '+n.getFullYear();
+  rSS();rSSEnriched();rSC();rSF();rST();rRS();rRC();rRF();rRT();
+}
+
+function rSS(){
+  var c=mr(0),p=mr(-1),y=ytd(),n=new Date();
+  var ci=D.filter(function(d){return d.created>=c.s&&d.created<=c.e}),pi=D.filter(function(d){return d.created>=p.s&&d.created<=p.e}),yi=D.filter(function(d){return d.created>=y.s&&d.created<=y.e});
+  var yv=0;yi.forEach(function(d){yv+=d.value});
+  var cards=[
+    {l:'Current Month',v:ci.length,s:MO[n.getMonth()],a:'cyan',p:'current'},
+    {l:'Prior Month',v:pi.length,s:MO[n.getMonth()===0?11:n.getMonth()-1],a:'blue',p:'prior'},
+    {l:'Year to Date',v:yi.length,s:''+n.getFullYear(),a:'green',p:'ytd'},
+    {l:'YTD ARR',v:$(yv),s:'Total contract ARR',a:'amber',p:'ytd'},
+    {l:'Scope Types',v:[...new Set(D.map(function(d){return d.scope}))].length,s:'Active categories',a:'violet',p:'ytd'},
+    {l:'Avg ARR',v:$(yi.length?yv/yi.length:0),s:'Per scope YTD',a:'rose',p:'ytd'}
+  ];
+  document.getElementById('sSummary').innerHTML=cards.map(function(c){return'<div class="sc an" data-a="'+c.a+'" data-period="'+c.p+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb">'+c.s+'</div></div>'}).join('');
+}
+function rSC(){
+  var y=ytd(),c=mr(0),scopes=[...new Set(D.map(function(d){return d.scope}))].sort();
+  var mx=Math.max.apply(null,scopes.map(function(s){return D.filter(function(d){return d.scope===s&&d.created>=y.s&&d.created<=y.e}).length}))||1;
+  document.getElementById('sChart').innerHTML=scopes.map(function(s,i){
+    var yi=D.filter(function(d){return d.scope===s&&d.created>=y.s&&d.created<=y.e});
+    var ci=D.filter(function(d){return d.scope===s&&d.created>=c.s&&d.created<=c.e});
+    var v=0;yi.forEach(function(d){v+=d.value});
+    return'<div class="br" data-scope="'+s+'"><div class="bl">'+s+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(yi.length/mx*100,10)+'%">'+yi.length+' YTD · '+ci.length+' this mo · '+$(v)+'</div></div></div>';
+  }).join('');
+}
+function rSF(){
+  var cats=['all'];D.forEach(function(d){if(cats.indexOf(d.scope)===-1)cats.push(d.scope)});
+  document.getElementById('sFilters').innerHTML=cats.map(function(c){return'<button class="fb'+(sF===c?' on':'')+'" data-sf="'+c+'">'+(c==='all'?'All':c)+'</button>'}).join('');
+}
+function rST(){
+  var f=sF==='all'?D:D.filter(function(d){return d.scope===sF});
+  f=f.slice().sort(function(a,b){return b.created-a.created});
+  document.getElementById('sTh').innerHTML='<tr><th>Client</th><th>Scope</th><th>Client Type</th><th>Term</th><th>Effective Date</th><th>End Date</th><th>ARR</th><th>Status</th></tr>';
+  document.getElementById('sTb').innerHTML=f.slice(0,60).map(function(d){return'<tr data-id="'+d.id+'"><td>'+d.client+'</td><td><span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span></td><td>'+d.clientType+'</td><td>'+d.term+'</td><td>'+fd(d.effectiveDate)+'</td><td>'+fd(d.endDate)+'</td><td>'+$(d.value)+'</td><td><span class="bd bd-'+sc(d.status)+'">'+(d.status||'—')+'</span></td></tr>'}).join('')||'<tr><td colspan="8"><div class="empty">No scopes found.</div></td></tr>';
+}
+function rRS(){
+  var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0});
+  var b30=[],b60=[],b90=[],b90p=[],autoY=[];
+  up.forEach(function(d){var x=du(d.endDate);if(x<=30)b30.push(d);else if(x<=60)b60.push(d);else if(x<=90)b90.push(d);else b90p.push(d);if(d.autoRenewal==='Annual')autoY.push(d)});
+  function sv(a){var t=0;a.forEach(function(d){t+=d.value});return t}
+  var cards=[
+    {l:'Next 30 Days',v:b30.length,s:$(sv(b30))+' ARR',a:'red',f:'0-30'},
+    {l:'31–60 Days',v:b60.length,s:$(sv(b60))+' ARR',a:'amber',f:'31-60'},
+    {l:'61–90 Days',v:b90.length,s:$(sv(b90))+' ARR',a:'blue',f:'61-90'},
+    {l:'Over 90 Days',v:b90p.length,s:$(sv(b90p))+' ARR',a:'green',f:'90+'},
+    {l:'Total Upcoming',v:up.length,s:$(sv(up))+' total ARR',a:'violet',f:'all'},
+    {l:'Auto-Renew',v:autoY.length,s:(up.length?Math.round(autoY.length/up.length*100):0)+'% of upcoming',a:'cyan',f:'all'}
+  ];
+  document.getElementById('rSummary').innerHTML=cards.map(function(c){return'<div class="sc an" data-a="'+c.a+'" data-rb="'+c.f+'" data-rl="'+c.l+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb">'+c.s+'</div></div>'}).join('');
+}
+function rRC(){
+  var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0});
+  var bks=[{l:'0–30 Days',k:'0-30',c:'red'},{l:'31–60 Days',k:'31-60',c:'amber'},{l:'61–90 Days',k:'61-90',c:'blue'},{l:'90+ Days',k:'90+',c:'green'}];
+  var mx=1;
+  bks.forEach(function(b){b.n=up.filter(function(d){return bk(d.endDate)===b.k}).length;b.v=0;up.filter(function(d){return bk(d.endDate)===b.k}).forEach(function(d){b.v+=d.value});if(b.n>mx)mx=b.n});
+  document.getElementById('rChart').innerHTML=bks.map(function(b){return'<div class="br" data-rb="'+b.k+'" data-rl="'+b.l+'"><div class="bl">'+b.l+'</div><div class="bt"><div class="bf '+b.c+'" style="width:'+Math.max(b.n/mx*100,10)+'%">'+b.n+' contracts · '+$(b.v)+'</div></div></div>'}).join('');
+}
+function rRF(){
+  var bks=[{k:'all',l:'All'},{k:'0-30',l:'≤30 Days'},{k:'31-60',l:'31–60'},{k:'61-90',l:'61–90'},{k:'90+',l:'90+'}];
+  document.getElementById('rFilters').innerHTML=bks.map(function(b){return'<button class="fb'+(rF===b.k?' on':'')+'" data-rf="'+b.k+'">'+b.l+'</button>'}).join('');
+}
+function rRT(){
+  var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0});
+  if(rF!=='all')up=up.filter(function(d){return bk(d.endDate)===rF});
+  up.sort(function(a,b){return a.endDate-b.endDate});
+  document.getElementById('rTh').innerHTML='<tr><th>Client</th><th>Scope</th><th>Term</th><th>End Date</th><th>Days Left</th><th>ARR</th><th>Auto-Renew</th><th>Status</th></tr>';
+  document.getElementById('rTb').innerHTML=up.slice(0,60).map(function(d){var x=du(d.endDate),u=x<=30?'red':x<=60?'amber':x<=90?'blue':'green',ar=d.autoRenewal==='Annual'?'green':'rose';return'<tr data-id="'+d.id+'"><td>'+d.client+'</td><td><span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span></td><td>'+d.term+'</td><td>'+fd(d.endDate)+'</td><td><span class="bd bd-'+u+'">'+x+' days</span></td><td>'+$(d.value)+'</td><td><span class="bd bd-'+ar+'">'+(d.autoRenewal||'—')+'</span></td><td><span class="bd bd-'+sc(d.status)+'">'+(d.status||'—')+'</span></td></tr>'}).join('')||'<tr><td colspan="8"><div class="empty">No renewals in this bucket.</div></td></tr>';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DRILL (scopes)
+// ═══════════════════════════════════════════════════════════
+function drillItem(id){
+  var d;D.forEach(function(x){if(x.id===id)d=x});if(!d)return;
+  document.getElementById('drillT').textContent=d.client;
+  document.getElementById('drillB').innerHTML='<table><tbody>'+
+    '<tr><td style="width:180px;color:var(--t3)">Order</td><td>'+d.title+'</td></tr>'+
+    '<tr><td style="color:var(--t3)">Client</td><td>'+d.client+'</td></tr>'+
+    '<tr><td style="color:var(--t3)">Client ID</td><td>'+d.clientId+'</td></tr>'+
+    '<tr><td style="color:var(--t3)">Scope</td><td><span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span></td></tr>'+
+    '<tr><td style="color:var(--t3)">Client Type</td><td>'+d.clientType+'</td></tr>'+
+    '<tr><td style="color:var(--t3)">Status</td><td><span class="bd bd-'+sc(d.status)+'">'+d.status+'</span></td></tr>'+
+    '<tr><td style="color:var(--t3)">Contract Term</td><td>'+d.term+'</td></tr>'+
+    '<tr><td style="color:var(--t3)">Effective Date</td><td>'+fd(d.effectiveDate)+'</td></tr>'+
+    '<tr><td style="color:var(--t3)">End Date</td><td>'+fd(d.endDate)+'</td></tr>'+
+    '<tr><td style="color:var(--t3)">Days Remaining</td><td>'+(d.endDate?du(d.endDate)+' days':'—')+'</td></tr>'+
+    '<tr><td style="color:var(--t3)">Auto-Renewal</td><td><span class="bd bd-'+(d.autoRenewal==='Annual'?'green':'rose')+'">'+(d.autoRenewal||'—')+'</span></td></tr>'+
+    '<tr><td style="color:var(--t3)">Total ARR</td><td>'+$(d.value)+'</td></tr>'+
+    '<tr><td style="color:var(--t3)">Equipment</td><td>'+$(d.equipment)+'</td></tr>'+
+    '<tr><td style="color:var(--t3)">Sites</td><td>'+d.siteQty+'</td></tr>'+
+    '</tbody></table>';
+  document.getElementById('drillMo').classList.add('open');
+}
+
+function showDrill(title,items){
+  document.getElementById('drillT').textContent=title;
+  var sm={},stm={};items.forEach(function(d){sm[d.scope]=(sm[d.scope]||0)+1;if(d.status)stm[d.status]=(stm[d.status]||0)+1});
+  var h='<div class="ms">';Object.keys(sm).sort(function(a,b){return sm[b]-sm[a]}).forEach(function(k){h+='<span class="bd bd-'+bc(k)+'" style="padding:5px 12px;font-size:12px">'+k+': '+sm[k]+'</span>'});h+='</div>';
+  h+='<div class="ms">';Object.keys(stm).sort(function(a,b){return stm[b]-stm[a]}).forEach(function(k){h+='<span class="bd bd-'+sc(k)+'" style="padding:5px 12px;font-size:12px">'+k+': '+stm[k]+'</span>'});h+='</div>';
+  var sorted=items.slice().sort(function(a,b){return b.created-a.created});
+  h+='<div class="tw"><table><thead><tr><th>Client</th><th>Scope</th><th>Type</th><th>Term</th><th>End Date</th><th>ARR</th><th>Status</th></tr></thead><tbody>';
+  sorted.forEach(function(d){h+='<tr data-id="'+d.id+'"><td>'+d.client+'</td><td><span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span></td><td>'+d.clientType+'</td><td>'+d.term+'</td><td>'+fd(d.endDate)+'</td><td>'+$(d.value)+'</td><td><span class="bd bd-'+sc(d.status)+'">'+(d.status||'—')+'</span></td></tr>'});
+  h+='</tbody></table></div>';
+  document.getElementById('drillB').innerHTML=h;
+  document.getElementById('drillMo').classList.add('open');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EVENTS
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('click',function(e){
+  // Tabs
+  var tab=e.target.closest('.tab');
+  if(tab){
+    curTab=tab.dataset.tab;
+    document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.tab===curTab)});
+    document.getElementById('scopesCnt').classList.toggle('off',curTab!=='scopes');
+    document.getElementById('renewCnt').classList.toggle('off',curTab!=='renewals');
+    document.getElementById('customersCnt').classList.toggle('off',curTab!=='customers');
+    if(curTab==='customers'&&C.length>0) renderCustomers();
+    return;
+  }
+  // Scope filters
+  var sf=e.target.closest('[data-sf]');if(sf){sF=sf.dataset.sf;rSF();rST();return}
+  // Renewal filters
+  var rf=e.target.closest('[data-rf]');if(rf){rF=rf.dataset.rf;rRF();rRT();return}
+  // Customer stage filters
+  var cf=e.target.closest('[data-cf]');if(cf){cF=cf.dataset.cf;rCF();rCT();return}
+  // Scope period drills
+  var pr=e.target.closest('[data-period]');
+  if(pr){var p=pr.dataset.period,items,label;
+    if(p==='current'){var r=mr(0);items=D.filter(function(d){return d.created>=r.s&&d.created<=r.e});label='Current Month'}
+    else if(p==='prior'){var r=mr(-1);items=D.filter(function(d){return d.created>=r.s&&d.created<=r.e});label='Prior Month'}
+    else{var r=ytd();items=D.filter(function(d){return d.created>=r.s&&d.created<=r.e});label='Year to Date'}
+    showDrill('Scopes — '+label+' ('+items.length+')',items);return}
+  // Scope chart drill
+  var sp=e.target.closest('[data-scope]');
+  if(sp){var s=sp.dataset.scope,y=ytd();var items=D.filter(function(d){return d.scope===s&&d.created>=y.s&&d.created<=y.e});showDrill(s+' — YTD ('+items.length+')',items);return}
+  // Renewal bucket drill
+  var rb=e.target.closest('[data-rb]');
+  if(rb){var k=rb.dataset.rb,l=rb.dataset.rl||'Renewals';var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0});var items=k==='all'?up:up.filter(function(d){return bk(d.endDate)===k});showDrill('Renewals — '+l+' ('+items.length+')',items);return}
+  // Scope row drill
+  var row=e.target.closest('tr[data-id]');if(row){drillItem(parseInt(row.dataset.id));return}
+  // Customer row drill
+  var crow=e.target.closest('tr[data-cid]');if(crow){drillCustomer(crow.dataset.cid);return}
+  // Close modal
+  if(e.target.id==='drillX'||(e.target.classList.contains('mo')&&e.target.id==='drillMo')){document.getElementById('drillMo').classList.remove('open');return}
+});
+
+// Customer search
+document.addEventListener('input',function(e){
+  if(e.target.id==='custSearch'){cSearch=e.target.value;rCT();}
+});
+
+document.getElementById('refBtn').addEventListener('click',function(){
+  var b=document.getElementById('refBtn');b.classList.add('spin');
+  Promise.all([fetchData(), fetchCustomerData()]).then(function(){
+    setTimeout(function(){b.classList.remove('spin')},600);
+    nextRef=Date.now()+REF_INT;
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+//  AUTO-REFRESH
+// ═══════════════════════════════════════════════════════════
+var REF_INT=5*60*1000, nextRef=Date.now()+REF_INT;
+function startAutoRefresh(){
+  setInterval(function(){
+    var b=document.getElementById('refBtn');b.classList.add('spin');
+    Promise.all([fetchData(),fetchCustomerData()]).then(function(){
+      setTimeout(function(){b.classList.remove('spin')},600);
+      nextRef=Date.now()+REF_INT;
+    });
+  },REF_INT);
+  setInterval(function(){
+    var s=Math.max(0,Math.round((nextRef-Date.now())/1000)),m=Math.floor(s/60),ss=s%60;
+    document.getElementById('timer').textContent='Updated '+new Date().toLocaleTimeString()+' · next in '+m+':'+(ss<10?'0':'')+ss;
+  },1000);
+}
+</script>
+</body>
+</html>
