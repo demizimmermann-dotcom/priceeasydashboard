@@ -520,8 +520,10 @@ function loadScript(src) {
 
 function parseExcelBuffer(buf) {
   var wb = XLSX.read(buf, { type: 'array' });
-  var sheetName = wb.SheetNames[0];
   console.log('Excel sheets found:', wb.SheetNames);
+  // Use "CS Tracker" sheet, fall back to first sheet
+  var sheetName = wb.SheetNames.indexOf('CS Tracker') !== -1 ? 'CS Tracker' : wb.SheetNames[0];
+  console.log('Using sheet:', sheetName);
   var ws = wb.Sheets[sheetName];
   var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
   return rows;
