@@ -536,7 +536,8 @@ function parseCustRow(r) {
     qbId: r['QB_ID'] || '',
     custId: r['CUSTOMER_ID'] || '',
     name: r['CUSTOMER_NAME'] || 'Unknown',
-    ba1: r['BA 1'] || r['IM'] || '',
+    im: r['IM'] || '',
+    ba1: r['BA 1'] || '',
     ba2: r['BA 2'] || '',
     csm: r['CSM'] || '',
     activity: r['ACTIVITY'] || '',
@@ -581,25 +582,36 @@ function renderCustomers() {
 }
 
 function rCS() {
-  var totalMrr = 0, totalAr = 0, highChurn = 0, highUpsell = 0;
+  var highChurn = 0, highUpsell = 0;
   C.forEach(function(c) {
-    totalMrr += c.mrrJan;
-    totalAr += c.arOutstandingJan;
     if (c.churnScore >= 7) highChurn++;
     if (c.upsellScore >= 7) highUpsell++;
   });
   var ragCounts = {R:0,A:0,G:0};
   C.forEach(function(c){ var r=c.rag?(c.rag+'')[0].toUpperCase():''; if(ragCounts[r]!==undefined)ragCounts[r]++; });
+
+  // Staff breakdown
+  var imMap={}, ba1Map={}, ba2Map={}, csmMap2={};
+  C.forEach(function(c){
+    if(c.im) imMap[c.im]=(imMap[c.im]||0)+1;
+    if(c.ba1) ba1Map[c.ba1]=(ba1Map[c.ba1]||0)+1;
+    if(c.ba2) ba2Map[c.ba2]=(ba2Map[c.ba2]||0)+1;
+    if(c.csm) csmMap2[c.csm]=(csmMap2[c.csm]||0)+1;
+  });
+  function topStaff(map,n){return Object.keys(map).sort(function(a,b){return map[b]-map[a]}).slice(0,n).map(function(k){return k+' ('+map[k]+')'}).join(', ');}
+
   var cards = [
     {l:'Total Customers', v:C.length, s:'Active in tracker', a:'cyan'},
-    {l:'MRR Jan 2026', v:$(totalMrr), s:'Total monthly recurring', a:'green'},
-    {l:'AR Outstanding', v:$(totalAr), s:'Jan 2026', a:'amber'},
     {l:'High Churn Risk', v:highChurn, s:'Score ≥ 7', a:'red'},
     {l:'Upsell Opportunities', v:highUpsell, s:'Score ≥ 7', a:'violet'},
-    {l:'Red RAG Status', v:ragCounts.R, s:ragCounts.A+' amber · '+ragCounts.G+' green', a:'rose'}
+    {l:'Red RAG Status', v:ragCounts.R, s:ragCounts.A+' amber · '+ragCounts.G+' green', a:'rose'},
+    {l:'IMs', v:Object.keys(imMap).length, s:topStaff(imMap,2), a:'blue'},
+    {l:'BA 1s', v:Object.keys(ba1Map).length, s:topStaff(ba1Map,2), a:'cyan'},
+    {l:'BA 2s', v:Object.keys(ba2Map).length, s:topStaff(ba2Map,2), a:'green'},
+    {l:'CSMs', v:Object.keys(csmMap2).length, s:topStaff(csmMap2,2), a:'amber'}
   ];
   document.getElementById('cSummary').innerHTML = cards.map(function(c) {
-    return '<div class="sc an" data-a="'+c.a+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb">'+c.s+'</div></div>';
+    return '<div class="sc an" data-a="'+c.a+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb" style="font-size:11px">'+c.s+'</div></div>';
   }).join('');
 }
 
@@ -688,7 +700,7 @@ function rCT() {
   }
   filtered = filtered.slice().sort(function(a,b){ return b.mrrJan-a.mrrJan; });
 
-  document.getElementById('cTh').innerHTML = '<tr><th>Customer</th><th>CSM</th><th>Stage</th><th>MRR Jan</th><th>Churn Risk</th><th>Upsell</th><th>RAG</th><th>Health</th><th>Stations</th></tr>';
+  document.getElementById('cTh').innerHTML = '<tr><th>Customer</th><th>IM</th><th>BA 1</th><th>BA 2</th><th>CSM</th><th>Stage</th><th>Churn Risk</th><th>Upsell</th><th>RAG</th><th>Stations</th></tr>';
   document.getElementById('cTb').innerHTML = filtered.slice(0,80).map(function(c){
     var churnCol = c.churnScore>=7?'red':c.churnScore>=4?'amber':'green';
     var upCol = c.upsellScore>=7?'violet':c.upsellScore>=4?'cyan':'blue';
@@ -696,13 +708,14 @@ function rCT() {
     var hStr=String(c.health||''); var healthCol = hStr==='Green'?'green':hStr==='Red'?'red':hStr==='Yellow'?'amber':'violet';
     return '<tr data-cid="'+c.custId+'">' +
       '<td>'+c.name+'</td>' +
-      '<td>'+c.csm+'</td>' +
+      '<td>'+(c.im||'—')+'</td>' +
+      '<td>'+(c.ba1||'—')+'</td>' +
+      '<td>'+(c.ba2||'—')+'</td>' +
+      '<td>'+(c.csm||'—')+'</td>' +
       '<td>'+(c.stage?'<span class="bd bd-cyan">'+c.stage+'</span>':'—')+'</td>' +
-      '<td>'+$(c.mrrJan)+'</td>' +
       '<td><span class="bd bd-'+churnCol+'">'+c.churnScore.toFixed(1)+'</span></td>' +
       '<td><span class="bd bd-'+upCol+'">'+c.upsellScore.toFixed(1)+'</span></td>' +
-      '<td>'+(c.rag?'<span class="bd '+ragCls+'">'+c.rag+'</span>':'—')+'</td>' +
-      '<td>'+(c.health?'<span class="bd bd-'+healthCol+'">'+c.health+'</span>':'—')+'</td>' +
+      '<td>'+(ragStr?'<span class="bd '+ragCls+'">'+ragStr+'</span>':'—')+'</td>' +
       '<td>'+c.activeStations+' / '+c.totalStations+'</td>' +
       '</tr>';
   }).join('') || '<tr><td colspan="9"><div class="empty">No customers found.</div></td></tr>';
@@ -945,15 +958,30 @@ function rSS(){
   var c=mr(0),p=mr(-1),y=ytd(),n=new Date();
   var ci=D.filter(function(d){return d.created>=c.s&&d.created<=c.e}),pi=D.filter(function(d){return d.created>=p.s&&d.created<=p.e}),yi=D.filter(function(d){return d.created>=y.s&&d.created<=y.e});
   var yv=0;yi.forEach(function(d){yv+=d.value});
+
+  // Staff breakdown — join scope records to CS tracker via clientId
+  var imN={},ba1N={},ba2N={},csmN={};
+  D.forEach(function(d){
+    var cs=getCsData(d);
+    if(!cs)return;
+    if(cs.im) imN[cs.im]=(imN[cs.im]||0)+1;
+    if(cs.ba1) ba1N[cs.ba1]=(ba1N[cs.ba1]||0)+1;
+    if(cs.ba2) ba2N[cs.ba2]=(ba2N[cs.ba2]||0)+1;
+    if(cs.csm) csmN[cs.csm]=(csmN[cs.csm]||0)+1;
+  });
+  function topTwo(map){return Object.keys(map).sort(function(a,b){return map[b]-map[a]}).slice(0,2).join(', ')||'—';}
+
   var cards=[
     {l:'Current Month',v:ci.length,s:MO[n.getMonth()],a:'cyan',p:'current'},
     {l:'Prior Month',v:pi.length,s:MO[n.getMonth()===0?11:n.getMonth()-1],a:'blue',p:'prior'},
     {l:'Year to Date',v:yi.length,s:''+n.getFullYear(),a:'green',p:'ytd'},
-    {l:'YTD ARR',v:$(yv),s:'Total contract ARR',a:'amber',p:'ytd'},
     {l:'Scope Types',v:[...new Set(D.map(function(d){return d.scope}))].length,s:'Active categories',a:'violet',p:'ytd'},
-    {l:'Avg ARR',v:$(yi.length?yv/yi.length:0),s:'Per scope YTD',a:'rose',p:'ytd'}
+    {l:'IMs',v:Object.keys(imN).length,s:topTwo(imN),a:'blue',p:'ytd'},
+    {l:'BA 1s',v:Object.keys(ba1N).length,s:topTwo(ba1N),a:'cyan',p:'ytd'},
+    {l:'BA 2s',v:Object.keys(ba2N).length,s:topTwo(ba2N),a:'violet',p:'ytd'},
+    {l:'CSMs',v:Object.keys(csmN).length,s:topTwo(csmN),a:'amber',p:'ytd'}
   ];
-  document.getElementById('sSummary').innerHTML=cards.map(function(c){return'<div class="sc an" data-a="'+c.a+'" data-period="'+c.p+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb">'+c.s+'</div></div>'}).join('');
+  document.getElementById('sSummary').innerHTML=cards.map(function(c){return'<div class="sc an" data-a="'+c.a+'" data-period="'+c.p+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb" style="font-size:11px">'+c.s+'</div></div>'}).join('');
 }
 function rSC(){
   var y=ytd(),c=mr(0),scopes=[...new Set(D.map(function(d){return d.scope}))].sort();
@@ -980,15 +1008,34 @@ function rRS(){
   var b30=[],b60=[],b90=[],b90p=[],autoY=[];
   up.forEach(function(d){var x=du(d.endDate);if(x<=30)b30.push(d);else if(x<=60)b60.push(d);else if(x<=90)b90.push(d);else b90p.push(d);if(d.autoRenewal==='Annual')autoY.push(d)});
   function sv(a){var t=0;a.forEach(function(d){t+=d.value});return t}
+
+  // Staff breakdown — join renewal scope records to CS tracker via clientId
+  var imN={},ba1N={},ba2N={},csmN={};
+  up.forEach(function(d){
+    var cs=getCsData(d);
+    if(!cs)return;
+    if(cs.im) imN[cs.im]=(imN[cs.im]||0)+1;
+    if(cs.ba1) ba1N[cs.ba1]=(ba1N[cs.ba1]||0)+1;
+    if(cs.ba2) ba2N[cs.ba2]=(ba2N[cs.ba2]||0)+1;
+    if(cs.csm) csmN[cs.csm]=(csmN[cs.csm]||0)+1;
+  });
+  function topTwo(map){return Object.keys(map).sort(function(a,b){return map[b]-map[a]}).slice(0,2).join(', ')||'—';}
+
   var cards=[
     {l:'Next 30 Days',v:b30.length,s:$(sv(b30))+' ARR',a:'red',f:'0-30'},
     {l:'31–60 Days',v:b60.length,s:$(sv(b60))+' ARR',a:'amber',f:'31-60'},
     {l:'61–90 Days',v:b90.length,s:$(sv(b90))+' ARR',a:'blue',f:'61-90'},
     {l:'Over 90 Days',v:b90p.length,s:$(sv(b90p))+' ARR',a:'green',f:'90+'},
-    {l:'Total Upcoming',v:up.length,s:$(sv(up))+' total ARR',a:'violet',f:'all'},
-    {l:'Auto-Renew',v:autoY.length,s:(up.length?Math.round(autoY.length/up.length*100):0)+'% of upcoming',a:'cyan',f:'all'}
+    {l:'IMs',v:Object.keys(imN).length,s:topTwo(imN),a:'blue',f:'all'},
+    {l:'BA 1s',v:Object.keys(ba1N).length,s:topTwo(ba1N),a:'cyan',f:'all'},
+    {l:'BA 2s',v:Object.keys(ba2N).length,s:topTwo(ba2N),a:'violet',f:'all'},
+    {l:'CSMs',v:Object.keys(csmN).length,s:topTwo(csmN),a:'amber',f:'all'},
+    {l:'IMs',v:Object.keys(imN).length,s:topTwo(imN),a:'blue',f:'all'},
+    {l:'BA 1s',v:Object.keys(ba1N).length,s:topTwo(ba1N),a:'cyan',f:'all'},
+    {l:'BA 2s',v:Object.keys(ba2N).length,s:topTwo(ba2N),a:'violet',f:'all'},
+    {l:'CSMs',v:Object.keys(csmN).length,s:topTwo(csmN),a:'amber',f:'all'}
   ];
-  document.getElementById('rSummary').innerHTML=cards.map(function(c){return'<div class="sc an" data-a="'+c.a+'" data-rb="'+c.f+'" data-rl="'+c.l+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb">'+c.s+'</div></div>'}).join('');
+  document.getElementById('rSummary').innerHTML=cards.map(function(c){return'<div class="sc an" data-a="'+c.a+'" data-rb="'+c.f+'" data-rl="'+c.l+'"><div class="lb">'+c.l+'</div><div class="vl">'+c.v+'</div><div class="sb" style="font-size:11px">'+c.s+'</div></div>'}).join('');
 }
 function rRC(){
   var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0});
