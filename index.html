@@ -526,7 +526,9 @@ function parseExcelBuffer(buf) {
   console.log('Using sheet:', sheetName);
   var ws = wb.Sheets[sheetName];
   var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-  return rows;
+  // CS Tracker has 2 header rows before actual column names (row index 2)
+  // Return from row 2 onward (row 2 = headers, row 3+ = data)
+  return rows.slice(2);
 }
 
 function parseCustRow(r) {
@@ -534,7 +536,7 @@ function parseCustRow(r) {
     qbId: r['QB_ID'] || '',
     custId: r['CUSTOMER_ID'] || '',
     name: r['CUSTOMER_NAME'] || 'Unknown',
-    ba1: r['BA 1'] || '',
+    ba1: r['BA 1'] || r['IM'] || '',
     ba2: r['BA 2'] || '',
     csm: r['CSM'] || '',
     activity: r['ACTIVITY'] || '',
@@ -557,7 +559,7 @@ function parseCustRow(r) {
     rag: r['RAG'] || '',
     implScore: parseFloat(r['IMPLEMENTATION_SCORE']) || 0,
     posType: r['POS TYPE'] || '',
-    health: r['Health'] || '',
+    health: r['Health'] || (r['SENTIMENT'] ? (parseFloat(r['SENTIMENT'])>=70?'Green':parseFloat(r['SENTIMENT'])>=40?'Yellow':'Red') : ''),
     latestUpdate: r['Latest Update'] || '',
     upsellOpportunity: r['UPSELL OPPORTUNITY BASED ON AI'] || '',
     competitor: r['COMPETITOR_PRICE_QUALITY'] || '',
