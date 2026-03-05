@@ -341,14 +341,72 @@ var CUST_FILE_GUID = '6b85d56a-1ad8-4dac-a1b4-6466ca6a4f80';
 
 function fetchCustomerData() {
   if (!accessToken) return;
-  fetchCustomerViaSP();
+  // Run search diagnostic first to find the file path, then fetch
+  findFilePathViaSPSearch();
 }
 
-function fetchCustomerViaSP() {
+function findFilePathViaSPSearch() {
   var h = {
     'Accept': 'application/json;odata=verbose',
     'Authorization': 'Bearer ' + accessToken
   };
+  var searchUrl = 'https://priceeasy1.sharepoint.com/_api/search/query?querytext='Customer+Master+and+Tracker'&selectproperties='Path,Title,FileExtension'&rowlimit=10';
+  
+  fetch(searchUrl, { headers: h })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var rows = d.d.query.PrimaryQueryResult.RelevantResults.Table.Rows.results;
+      var paths = rows.map(function(r) {
+        var cells = r.Cells.results;
+        var path = cells.find(function(c){return c.Key==='Path';});
+        var ext = cells.find(function(c){return c.Key==='FileExtension';});
+        return (path ? path.Value : '') + ' [' + (ext ? ext.Value : '') + ']';
+      }).filter(function(p){ return p.toLowerCase().includes('xlsx') || p.toLowerCase().includes('customer'); });
+      
+      console.log('=== FILE SEARCH RESULTS ===');
+      paths.forEach(function(p){ console.log(p); });
+      setCustStatus(false, 'Check console for file path — copy it here!');
+      
+      // Also try fetching with the found path if xlsx found
+      var xlsxPath = rows.map(function(r){
+        var cells = r.Cells.results;
+        var path = cells.find(function(c){return c.Key==='Path';});
+        return path ? path.Value : '';
+      }).find(function(p){ return p.toLowerCase().includes('customer master') && p.toLowerCase().includes('xlsx'); });
+      
+      if (xlsxPath) {
+        console.log('=== FOUND XLSX AT:', xlsxPath, '===');
+        // Extract server-relative URL from full URL
+        var serverRelUrl = xlsxPath.replace('https://priceeasy1.sharepoint.com', '');
+        var site = serverRelUrl.indexOf('/sites/') === 0
+          ? 'https://priceeasy1.sharepoint.com' + serverRelUrl.substring(0, serverRelUrl.indexOf('/', 8))
+          : 'https://priceeasy1.sharepoint.com';
+        fetchCustomerViaSP(serverRelUrl, site);
+      } else {
+        fetchCustomerViaSP();
+      }
+    })
+    .catch(function() {
+      // Search failed, fall back to path scanning
+      fetchCustomerViaSP();
+    });
+}
+
+function fetchCustomerViaSP(knownPath, knownSite) {
+  var h = {
+    'Accept': 'application/json;odata=verbose',
+    'Authorization': 'Bearer ' + accessToken
+  };
+
+  // If we already know the path from search, use it directly
+  if (knownPath) {
+    return readExcelViaSpExcel(knownPath, knownSite || 'https://priceeasy1.sharepoint.com')
+      .catch(function(e) {
+        console.error('Customer fetch error:', e);
+        setCustStatus(false, 'Customers: ' + e.message);
+        showCustError(e.message);
+      });
+  }
 
   var fileName = "Customer Master and Tracker (All Teams).xlsx";
   var candidatePaths = [
