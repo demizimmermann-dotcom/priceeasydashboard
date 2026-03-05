@@ -241,7 +241,8 @@ var msalConfig = {
   cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: false }
 };
 
-var loginRequest = { scopes: ["https://priceeasy1.sharepoint.com/.default", "https://graph.microsoft.com/Files.Read.All", "https://graph.microsoft.com/Sites.Read.All"] };
+var loginRequest = { scopes: ["https://priceeasy1.sharepoint.com/.default"] };
+var graphScopes = ["https://graph.microsoft.com/Files.Read.All", "https://graph.microsoft.com/Sites.Read.All"];
 var msalInstance = new msal.PublicClientApplication(msalConfig);
 var accessToken = null;
 
@@ -270,8 +271,18 @@ var curTab = 'scopes', sF = 'all', rF = 'all', cF = 'all', cSearch = '';
 // ═══════════════════════════════════════════════════════════
 msalInstance.handleRedirectPromise().then(function(resp) {
   if (resp) {
-    accessToken = resp.accessToken;
-    showDashboard();
+    // Could be SharePoint login OR Graph consent redirect
+    var isGraphConsent = resp.scopes && resp.scopes.some(function(s){ return s.includes('graph.microsoft.com'); });
+    if (isGraphConsent) {
+      // Graph consent completed — dashboard already shown, just fetch customer data
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      sessionStorage.removeItem('needsCustFetch');
+      doGraphFetch(resp.accessToken);
+    } else {
+      accessToken = resp.accessToken;
+      showDashboard();
+    }
   } else {
     var accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
@@ -335,20 +346,17 @@ function fetchCustomerData() {
 }
 
 function fetchCustomerViaGraph() {
-  // Acquire a Graph-scoped token separately from the SharePoint token
   var accounts = msalInstance.getAllAccounts();
   if (!accounts.length) { showCustError('No signed-in account found'); return; }
 
-  msalInstance.acquireTokenSilent({
-    scopes: ['https://graph.microsoft.com/Files.Read.All', 'https://graph.microsoft.com/Sites.Read.All'],
-    account: accounts[0]
-  }).then(function(tokenResp) {
-    var graphToken = tokenResp.accessToken;
-    doGraphFetch(graphToken);
-  }).catch(function(err) {
-    console.warn('Silent Graph token failed, trying redirect:', err);
-    showCustError('Graph permission not yet granted. Please sign out and sign back in, or grant admin consent in Azure AD for Files.Read.All and Sites.Read.All.');
-  });
+  // Try silent first — works if Graph scopes already consented
+  msalInstance.acquireTokenSilent({ scopes: graphScopes, account: accounts[0] })
+    .then(function(tokenResp) { doGraphFetch(tokenResp.accessToken); })
+    .catch(function() {
+      // Need interactive consent for Graph scopes — redirect
+      sessionStorage.setItem('needsCustFetch', '1');
+      msalInstance.acquireTokenRedirect({ scopes: graphScopes, account: accounts[0] });
+    });
 }
 
 function doGraphFetch(graphToken) {
