@@ -162,7 +162,50 @@ function showDash(){document.getElementById('loginScreen').style.display='none';
 function fetchData(){var url=SITE+"/_api/web/lists(guid'"+GUID+"')/items?$top=5000&$select=*",h={'Accept':'application/json;odata=verbose'};if(accessToken)h['Authorization']='Bearer '+accessToken;return fetch(url,{headers:h,credentials:accessToken?'omit':'include'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(function(j){var rows=(j.d&&j.d.results)?j.d.results:(j.value||[]);D=rows.map(parseRow);setStatus(true,D.length+' scopes');renderAll();updateTime()}).catch(function(e){console.error('Fetch:',e);setStatus(false,e.message)})}
 function parseRow(item){var eff=item.ContractEffectiveDate?new Date(item.ContractEffectiveDate):null,termRaw=item.ContractTerm||'',m=termRaw.match(/(\d+)/),tm=m?parseInt(m[1]):12,end=null;if(eff){end=new Date(eff.getTime());end.setMonth(end.getMonth()+tm)}var pilot=item.Pilot||'',pocRaw=item.POCTerm||'',pocM=pocRaw.match(/(\d+)/),pocDays=pocM?parseInt(pocM[1]):0,pocEnd=null;if(pilot==='Yes'&&eff&&pocDays>0){pocEnd=new Date(eff.getTime());pocEnd.setDate(pocEnd.getDate()+pocDays)}var now=new Date();return{id:item.Id||item.ID,title:item.SalesRequestID||'',client:item.LegalClientName||'Unknown',clientId:item.ClientID||'',scope:item.Scope||'Uncategorized',clientType:item.ClientType||'',term:termRaw,termMonths:tm,effectiveDate:eff,endDate:end,value:parseFloat(item.TotalARR)||0,equipment:parseFloat(item.TotalEquipment)||0,status:item.Status||'',autoRenewal:item.AutoRenewal||'',currency:item.Currency||'USD',siteQty:parseInt(item.CurrentSiteQty)||0,created:item.Created?new Date(item.Created):now,pilot:pilot,pocTerm:pocRaw,pocDays:pocDays,pocEnd:pocEnd,pocStatus:pilot!=='Yes'?'N/A':(!pocEnd?'Unknown':(pocEnd<now?'Expired':(du(pocEnd)<=30?'Expiring Soon':'Active')))}}
 // FETCH CUSTOMER MASTER
-function fetchCust(){if(!accessToken)return;var url='https://priceeasy1.sharepoint.com/_api/web/GetFileByServerRelativeUrl(\''+CUST_KNOWN_PATH.replace(/'/g,"''")+'\')/$value';fetch(url,{headers:{'Authorization':'Bearer '+accessToken}}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer()}).then(function(buf){if(typeof XLSX==='undefined')return loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').then(function(){return parseXL(buf)});return parseXL(buf)}).then(function(){setCustStatus(true,C.length+' customers');showCustContent();renderAll()}).catch(function(e){console.error('Cust:',e);setCustStatus(false,e.message);showCustError(e.message)})}
+var CUST_FILE_GUID='6b85d56a-1ad8-4dac-a1b4-6466ca6a4f80';
+function fetchCust(){
+  if(!accessToken)return;
+  var h={'Accept':'application/json;odata=verbose','Authorization':'Bearer '+accessToken};
+  // Step 1: Try search to find the file across all sites
+  var searchUrl="https://priceeasy1.sharepoint.com/_api/search/query?querytext='Customer+Master+and+Tracker'&selectproperties='Path,Title,FileExtension'&rowlimit=10";
+  fetch(searchUrl,{headers:h}).then(function(r){return r.json()}).then(function(d){
+    var rows=d.d.query.PrimaryQueryResult.RelevantResults.Table.Rows.results;
+    var xlsxPath=rows.map(function(r){var cells=r.Cells.results;var path=cells.find(function(c){return c.Key==='Path'});return path?path.Value:''}).find(function(p){return p.toLowerCase().includes('customer master')&&p.toLowerCase().includes('xlsx')});
+    if(xlsxPath){
+      console.log('Search found:',xlsxPath);
+      var serverRelUrl=xlsxPath.replace('https://priceeasy1.sharepoint.com','');
+      var site=serverRelUrl.indexOf('/sites/')===0?'https://priceeasy1.sharepoint.com'+serverRelUrl.substring(0,serverRelUrl.indexOf('/',8)):'https://priceeasy1.sharepoint.com';
+      return downloadAndParseExcel(serverRelUrl,site);
+    }
+    return tryKnownPaths();
+  }).catch(function(){return tryKnownPaths()});
+}
+function tryKnownPaths(){
+  var h={'Accept':'application/json;odata=verbose','Authorization':'Bearer '+accessToken};
+  var fileName='Customer Master and Tracker (All Teams).xlsx';
+  var paths=[CUST_KNOWN_PATH,'/Shared Documents/'+fileName,'/Shared Documents/General/'+fileName,'/sites/AccountingFinance/Shared Documents/'+fileName,'/sites/Operations/Shared Documents/'+fileName,'/Documents/'+fileName];
+  function tryPath(i){
+    if(i>=paths.length){
+      // Last resort: GUID lookup
+      var guidUrl="https://priceeasy1.sharepoint.com/_api/web/GetFileById(guid'"+CUST_FILE_GUID+"')?$select=ServerRelativeUrl";
+      return fetch(guidUrl,{headers:h}).then(function(r){if(!r.ok)throw new Error('GUID lookup failed');return r.json()}).then(function(d){
+        var p=d.d?d.d.ServerRelativeUrl:d.ServerRelativeUrl;if(!p)throw new Error('No path from GUID');
+        var site=p.indexOf('/sites/')===0?'https://priceeasy1.sharepoint.com'+p.substring(0,p.indexOf('/',8)):'https://priceeasy1.sharepoint.com';
+        return downloadAndParseExcel(p,site);
+      });
+    }
+    var path=paths[i];
+    var site=path.indexOf('/sites/')===0?'https://priceeasy1.sharepoint.com'+path.substring(0,path.indexOf('/',8)):'https://priceeasy1.sharepoint.com';
+    var checkUrl=site+"/_api/web/GetFileByServerRelativeUrl('"+path.replace(/'/g,"''")+"')?$select=ServerRelativeUrl,Exists";
+    return fetch(checkUrl,{headers:h}).then(function(r){if(!r.ok)return tryPath(i+1);return r.json().then(function(d){var info=d.d||d;if(!info.Exists)return tryPath(i+1);return downloadAndParseExcel(path,site)})}).catch(function(){return tryPath(i+1)});
+  }
+  return tryPath(0).catch(function(e){console.error('All paths failed:',e);setCustStatus(false,e.message);showCustError(e.message)});
+}
+function downloadAndParseExcel(serverRelUrl,site){
+  site=site||'https://priceeasy1.sharepoint.com';
+  var downloadUrl=site+"/_api/web/GetFileByServerRelativeUrl('"+serverRelUrl.replace(/'/g,"''")+"')/$value";
+  return fetch(downloadUrl,{headers:{'Authorization':'Bearer '+accessToken}}).then(function(r){if(!r.ok)throw new Error('Download failed: '+r.status);return r.arrayBuffer()}).then(function(buf){if(typeof XLSX==='undefined')return loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').then(function(){return parseXL(buf)});return parseXL(buf)}).then(function(){setCustStatus(true,C.length+' customers');showCustContent();renderAll()}).catch(function(e){console.error('Excel parse error:',e);setCustStatus(false,e.message);showCustError(e.message)});
+}
 function loadScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
 function parseXL(buf){var wb=XLSX.read(buf,{type:'array'}),sn=wb.SheetNames.indexOf('CS Tracker')!==-1?'CS Tracker':wb.SheetNames[0],rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''}),vals=rows.slice(2);if(!vals||vals.length<2)return;var hdrs=vals[0].map(function(h){return(h||'').toString().trim()});C=[];for(var i=1;i<vals.length;i++){var row=vals[i],obj={};hdrs.forEach(function(h,idx){obj[h]=row[idx]!==undefined?row[idx]:''});if(obj['CUSTOMER_NAME']||obj['CUSTOMER_ID'])C.push(parseCustRow(obj))}}
 function parseCustRow(r){return{custId:String(r['CUSTOMER_ID']||'').trim(),qbId:r['QB_ID']||'',name:r['CUSTOMER_NAME']||'Unknown',ae:r['AE']||'',csm:r['CSM']||'',im:r['IM']||'',ba1:r['BA 1']||'',ba2:r['BA 2']||'',activity:r['ACTIVITY']||'',sentiment:r['SENTIMENT']||'',upsellScore:parseFloat(r['UPSELL_SCORE'])||0,churnScore:parseFloat(r['CHURN_SCORE'])||0,upsellComments:r['UPSELL_COMMENTS']||'',churnComments:r['CHURN_COMMENTS']||'',mrrDec:parseFloat(r['MRR Dec'])||0,mrrJan:parseFloat(r['MRR JAN 2026'])||0,contractDate:r['CONTRACT DATE']?new Date(r['CONTRACT DATE']):null,renewalDate:r['RENEWAL DATE']?new Date(r['RENEWAL DATE']):null,arOutstanding:parseFloat(r['AR Outstanding'])||0,totalStations:parseInt(r['TOTAL_STATIONS'])||0,activeStations:parseInt(r['ACTIVE_STATIONS'])||0,inactiveStations:parseInt(r['INACTIVE_STATIONS'])||0,stage:r['Stage']||'',rag:r['RAG']||'',implScore:parseFloat(r['IMPLEMENTATION_SCORE'])||0,health:r['Health']||'',publishActivity:r['PUBLISH_ACTIVITY']||'',lastActivity:r['LAST_ACTIVITY_ON']||'',platform:r['FUEL_PLATFORM']||'',posType:r['POS TYPE']||'',ruleScore:parseFloat(r['RULE_SOPHISTICATION_SCORE'])||0,latestUpdate:r['Latest Update']||'',upsellOpportunity:r['UPSELL OPPORTUNITY BASED ON AI']||''}}
