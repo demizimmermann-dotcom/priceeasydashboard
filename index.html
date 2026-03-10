@@ -104,24 +104,24 @@ tbody td{padding:10px 16px;font-size:12px;color:var(--t2)}tbody td:first-child{c
   <!-- TAB 2: POC SUMMARY -->
   <div class="cnt off" id="pocCnt">
     <div class="row" id="pocSummary"></div>
-    <div class="cs an"><h2>POC by Contract Term</h2><div id="pocTermChart"></div></div>
-    <div class="cs an"><h2>POC by AE</h2><div id="pocAEChart"></div></div>
-    <div class="ts-wrap an"><div class="ts-hdr"><h2><span class="dot" style="background:var(--orange)"></span> POC Detail</h2></div><div class="tw"><table><thead id="pocTh"></thead><tbody id="pocTb"></tbody></table></div></div>
+    <div class="cs"><h2>POC by Contract Term</h2><div id="pocTermChart"></div></div>
+    <div class="cs"><h2>POC by AE</h2><div id="pocAEChart"></div></div>
+    <div class="ts-wrap"><div class="ts-hdr"><h2><span class="dot" style="background:var(--orange)"></span> POC Detail</h2></div><div class="tw"><table><thead id="pocTh"></thead><tbody id="pocTb"></tbody></table></div></div>
   </div>
   <!-- TAB 3: IMPLEMENTATIONS -->
   <div class="cnt off" id="implCnt">
     <div class="row" id="implSummary"></div>
-    <div class="cs an"><h2>Stage Breakdown</h2><div id="implStageChart"></div></div>
-    <div class="cs an"><h2>Publishing Activity <span style="font-size:11px;color:var(--t3);font-weight:400">⚠️ 'Not Publishing' = at risk</span></h2><div id="implPubChart"></div></div>
-    <div class="cs an"><h2>Active vs Inactive Stations</h2><div id="implStationChart"></div></div>
-    <div class="ts-wrap an"><div class="ts-hdr"><h2><span class="dot" style="background:var(--green)"></span> Implementation Detail</h2></div><div class="tw"><table><thead id="implTh"></thead><tbody id="implTb"></tbody></table></div></div>
+    <div class="cs"><h2>Stage Breakdown</h2><div id="implStageChart"></div></div>
+    <div class="cs"><h2>Publishing Activity <span style="font-size:11px;color:var(--t3);font-weight:400">⚠️ 'Not Publishing' = at risk</span></h2><div id="implPubChart"></div></div>
+    <div class="cs"><h2>Active vs Inactive Stations</h2><div id="implStationChart"></div></div>
+    <div class="ts-wrap"><div class="ts-hdr"><h2><span class="dot" style="background:var(--green)"></span> Implementation Detail</h2></div><div class="tw"><table><thead id="implTh"></thead><tbody id="implTb"></tbody></table></div></div>
   </div>
   <!-- TAB 4: RENEWALS -->
-  <div class="cnt off" id="renewCnt">
+  <div class="cnt off" id="renewalsCnt">
     <div class="row" id="renSummary"></div>
-    <div class="cs an"><h2>Renewals by Term Type</h2><div id="renTermChart"></div></div>
-    <div class="cs an"><h2>Churn Risk Flags</h2><div id="renRiskSection"></div></div>
-    <div class="ts-wrap an"><div class="ts-hdr"><h2><span class="dot" style="background:var(--amber)"></span> Renewals Detail</h2><div class="fg" id="renFilters"></div></div><div class="tw"><table><thead id="renTh"></thead><tbody id="renTb"></tbody></table></div></div>
+    <div class="cs"><h2>Renewals by Term Type</h2><div id="renTermChart"></div></div>
+    <div class="cs"><h2>Churn Risk Flags</h2><div id="renRiskSection"></div></div>
+    <div class="ts-wrap"><div class="ts-hdr"><h2><span class="dot" style="background:var(--amber)"></span> Renewals Detail</h2><div class="fg" id="renFilters"></div></div><div class="tw"><table><thead id="renTh"></thead><tbody id="renTb"></tbody></table></div></div>
   </div>
 </div>
 <div class="mo" id="drillMo"><div class="ml"><div class="mh"><h3 id="drillT">Detail</h3><button class="mc" id="drillX">✕</button></div><div class="mb" id="drillB"></div></div></div>
@@ -429,7 +429,7 @@ function handleDrill(key){
 //  EVENTS
 // ═══════════════════════════════════════════
 document.addEventListener('click',function(e){
-  var tab=e.target.closest('.tab');if(tab){curTab=tab.dataset.tab;document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.tab===curTab)});['activityCnt','pocCnt','implCnt','renewCnt'].forEach(function(id){document.getElementById(id).classList.toggle('off',id!==curTab+'Cnt')});return}
+  var tab=e.target.closest('.tab');if(tab){curTab=tab.dataset.tab;document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.tab===curTab)});['activityCnt','pocCnt','implCnt','renewalsCnt'].forEach(function(id){document.getElementById(id).classList.toggle('off',id!==curTab+'Cnt')});return}
   var dr=e.target.closest('[data-drill]');if(dr){handleDrill(dr.dataset.drill);return}
   var sf=e.target.closest('[data-sf]');if(sf){sF=sf.dataset.sf;rAct();return}
   var rf=e.target.closest('[data-rf]');if(rf){rF=rf.dataset.rf;rRen();return}
