@@ -6,6 +6,7 @@
 <title>Progress Scope Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#0B0F1A;--card:#121829;--card-h:#1A2238;--card-a:#0F1525;--bdr:#1E2A45;--bdr-l:#2A3A5C;--t1:#E8ECF4;--t2:#8896B3;--t3:#5A6A8A;--blue:#4A90E2;--cyan:#38BDF8;--green:#34D399;--amber:#FBBF24;--rose:#F472B6;--violet:#A78BFA;--orange:#FB923C;--red:#EF4444;--r:12px}
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh}
@@ -143,7 +144,9 @@ function parseRow(it){
   if(pilot==='Yes'&&eff&&pocD>0){pocEnd=new Date(eff.getTime());pocEnd.setDate(pocEnd.getDate()+pocD)}
   var pocImplCost=parseFloat(it.POCImplCost)||0,pocMonthly=parseFloat(it.POCCostsMonthly)||0;
   var pocTotalCost=pocImplCost+(pocMonthly*(pocD/30));
-  var notes=it.Notes||it.OData__x004e_otes||it.Comment||'';var now=new Date();
+  var rawNotes=it.Notes||it.OData__x004e_otes||it.Comment||'';
+  var notes=typeof rawNotes==='string'?rawNotes.replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/"/g,'&quot;').replace(/'/g,'&#39;').substring(0,500):'';
+  var now=new Date();
   return{id:it.Id||it.ID,title:it.SalesRequestID||'',client:it.LegalClientName||'Unknown',clientId:it.ClientID||'',scope:it.Scope||'Uncategorized',clientType:it.ClientType||'',term:tR,termMonths:tm,effectiveDate:eff,endDate:end,value:parseFloat(it.TotalARR)||0,equipment:parseFloat(it.TotalEquipment)||0,status:it.Status||'',autoRenewal:it.AutoRenewal||'',currency:it.Currency||'USD',siteQty:parseInt(it.CurrentSiteQty)||0,created:it.Created?new Date(it.Created):now,pilot:pilot,pocTerm:pocTR,pocDays:pocD,pocEnd:pocEnd,pocTotalCost:pocTotalCost,pocStatus:pilot!=='Yes'?'N/A':(!pocEnd?'Unknown':(pocEnd<now?'Expired':(du(pocEnd)<=30?'Expiring Soon':'Active'))),notes:notes}
 }
 // FETCH CUSTOMER MASTER
@@ -155,11 +158,11 @@ function tp(i){if(i>=ps.length){return fetch("https://priceeasy1.sharepoint.com/
 var path=ps[i],site=path.indexOf('/sites/')===0?'https://priceeasy1.sharepoint.com'+path.substring(0,path.indexOf('/',8)):'https://priceeasy1.sharepoint.com';
 return fetch(site+"/_api/web/GetFileByServerRelativeUrl('"+path.replace(/'/g,"''")+"')?$select=Exists",{headers:h}).then(function(r){if(!r.ok)return tp(i+1);return r.json().then(function(d){return(d.d||d).Exists?dlExcel(path,site):tp(i+1)})}).catch(function(){return tp(i+1)})}
 return tp(0).catch(function(e){setCS(false,e.message)})}
-function dlExcel(path,site){return fetch(site+"/_api/web/GetFileByServerRelativeUrl('"+path.replace(/'/g,"''")+"')/$value",{headers:{'Authorization':'Bearer '+accessToken}}).then(function(r){if(!r.ok)throw new Error('DL fail');return r.arrayBuffer()}).then(function(buf){if(typeof XLSX==='undefined')return loadS('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').then(function(){return pXL(buf)});return pXL(buf)}).then(function(){setCS(true,C.length+' customers');renderAll()}).catch(function(e){setCS(false,e.message)})}
+function dlExcel(path,site){return fetch(site+"/_api/web/GetFileByServerRelativeUrl('"+path.replace(/'/g,"''")+"')/$value",{headers:{'Authorization':'Bearer '+accessToken}}).then(function(r){if(!r.ok)throw new Error('DL fail');return r.arrayBuffer()}).then(function(buf){if(typeof XLSX==='undefined')return loadS('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js').then(function(){return pXL(buf)});return pXL(buf)}).then(function(){setCS(true,C.length+' customers');renderAll()}).catch(function(e){setCS(false,e.message)})}
 function loadS(s){return new Promise(function(r,j){var e=document.createElement('script');e.src=s;e.onload=r;e.onerror=j;document.head.appendChild(e)})}
 function pXL(buf){var wb=XLSX.read(buf,{type:'array'}),sn=wb.SheetNames.indexOf('CS Tracker')!==-1?'CS Tracker':wb.SheetNames[0],rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''}),vals=rows.slice(2);if(!vals||vals.length<2)return;var hdrs=vals[0].map(function(h){return(h||'').toString().trim()});C=[];for(var i=1;i<vals.length;i++){var row=vals[i],o={};hdrs.forEach(function(h,idx){o[h]=row[idx]!==undefined?row[idx]:''});if(o['CUSTOMER_NAME']||o['CUSTOMER_ID'])C.push(pCR(o))}}
 function pCR(r){var init=parseExcelDate(r['Initiation']),end=parseExcelDate(r['End']);
-return{custId:String(r['CUSTOMER_ID']||'').trim(),name:r['CUSTOMER_NAME']||'Unknown',ae:r['AE']||'',csm:r['CSM']||'',stage:r['Stage']||'',publishActivity:r['PUBLISH_ACTIVITY']||'',ticketActivity:parseInt(r['TICKET_ACTIVITY'])||0,activeStations:parseInt(r['ACTIVE_STATIONS'])||0,inactiveStations:parseInt(r['INACTIVE_STATIONS'])||0,totalStations:parseInt(r['TOTAL_STATIONS'])||0,initiation:init,implEnd:end,implDays:init&&end?Math.round((end-init)/864e5):null,implInProgress:init&&!end,implComplete:init&&end,health:r['Health']||'',rag:r['RAG']||'',upsellScore:parseFloat(r['UPSELL_SCORE'])||0,churnScore:parseFloat(r['CHURN_SCORE'])||0,mrrJan:parseFloat(r['MRR JAN 2026'])||0,contractDate:parseExcelDate(r['CONTRACT DATE']),renewalDate:parseExcelDate(r['RENEWAL DATE']),latestUpdate:r['Latest Update']||''}}
+return{custId:String(r['CUSTOMER_ID']||'').trim(),name:r['CUSTOMER_NAME']||'Unknown',ae:r['AE']||'',csm:r['CSM']||'',stage:r['Stage']||'',publishActivity:r['PUBLISH_ACTIVITY']||'',ticketActivity:parseInt(r['TICKET_ACTIVITY'])||parseInt(r['TICKET ACTIVITY'])||0,activeStations:parseInt(r['ACTIVE_STATIONS'])||0,inactiveStations:parseInt(r['INACTIVE_STATIONS'])||0,totalStations:parseInt(r['TOTAL_STATIONS'])||0,initiation:init,implEnd:end,implDays:init&&end?Math.round((end-init)/864e5):null,implInProgress:init&&!end,implComplete:init&&end,health:r['Health']||'',rag:r['RAG']||'',upsellScore:parseFloat(r['UPSELL_SCORE'])||0,churnScore:parseFloat(r['CHURN_SCORE'])||0,mrrJan:parseFloat(r['MRR JAN 2026'])||0,contractDate:parseExcelDate(r['CONTRACT DATE']),renewalDate:parseExcelDate(r['RENEWAL DATE']),latestUpdate:r['Latest Update']||''}}
 // JOIN
 var _m=null;function cm(){if(!_m||_m._l!==C.length){_m={_l:C.length};C.forEach(function(c){if(c.custId)_m[c.custId.toLowerCase()]=c})}return _m}
 function gc(d){if(!C.length)return null;var k=String(d.clientId||'').trim().toLowerCase();return k?(cm()[k]||null):null}
@@ -270,15 +273,15 @@ function rImpl(){
   // Avg days
   function avgD(arr){if(!arr.length)return 0;var t=0;arr.forEach(function(x){t+=x.implDays});return Math.round(t/arr.length)}
   // Tickets
-  var tickC=0,tickP=0,tickY=0,tickAll=0;C.forEach(function(x){tickAll+=x.ticketActivity});
-  // Since tickets don't have dates, show total
+  var tickAll=0,tickClients=0;C.forEach(function(x){if(x.ticketActivity>0){tickAll+=x.ticketActivity;tickClients++}});
+  console.log('Impl debug: inProg='+inProg.length+', completed='+completed.length+', tickAll='+tickAll+', tickClients='+tickClients+', C.length='+C.length);
   document.getElementById('implSummary').innerHTML=[
     card('In Progress',inProg.length,'Have start, no end date','orange','impl-inprogress'),
     card('Completed Current Mo',compC.length,avgD(compC)+' avg days','cyan','impl-comp-current'),
     card('Completed Prior Mo',compP.length,avgD(compP)+' avg days','blue','impl-comp-prior'),
     card('Completed YTD',compY.length,avgD(compY)+' avg days','green','impl-comp-ytd'),
     card('Avg Days (YTD)',avgD(compY)+'d',compY.length+' completions','amber','impl-comp-ytd'),
-    card('Open Tickets',tickAll,'Across all clients','red','impl-tickets')
+    card('Open Tickets',tickAll,tickClients+' clients with tickets','red','impl-tickets')
   ].join('');
   // Stage breakdown
   var stMap={};C.filter(function(x){return x.stage}).forEach(function(x){stMap[x.stage]=(stMap[x.stage]||0)+1});
@@ -309,7 +312,9 @@ function rImpl(){
 //  TAB 4: RENEWALS
 // ═══════════════════════════════════════════
 function rRen(){
+  console.log('rRen called, D.length='+D.length);
   var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0});
+  console.log('rRen: upcoming='+up.length);
   var b30=[],b60=[],b90=[],b90p=[];
   up.forEach(function(d){var x=du(d.endDate);if(x<=30)b30.push(d);else if(x<=60)b60.push(d);else if(x<=90)b90.push(d);else b90p.push(d)});
   function sv(a){var t=0;a.forEach(function(d){t+=d.value});return t}
