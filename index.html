@@ -143,7 +143,7 @@ function parseRow(it){
   if(pilot==='Yes'&&eff&&pocD>0){pocEnd=new Date(eff.getTime());pocEnd.setDate(pocEnd.getDate()+pocD)}
   var pocImplCost=parseFloat(it.POCImplCost)||0,pocMonthly=parseFloat(it.POCCostsMonthly)||0;
   var pocTotalCost=pocImplCost+(pocMonthly*(pocD/30));
-  var notes=it.Notes||'';var now=new Date();
+  var notes=it.Notes||it.OData__x004e_otes||it.Comment||'';var now=new Date();
   return{id:it.Id||it.ID,title:it.SalesRequestID||'',client:it.LegalClientName||'Unknown',clientId:it.ClientID||'',scope:it.Scope||'Uncategorized',clientType:it.ClientType||'',term:tR,termMonths:tm,effectiveDate:eff,endDate:end,value:parseFloat(it.TotalARR)||0,equipment:parseFloat(it.TotalEquipment)||0,status:it.Status||'',autoRenewal:it.AutoRenewal||'',currency:it.Currency||'USD',siteQty:parseInt(it.CurrentSiteQty)||0,created:it.Created?new Date(it.Created):now,pilot:pilot,pocTerm:pocTR,pocDays:pocD,pocEnd:pocEnd,pocTotalCost:pocTotalCost,pocStatus:pilot!=='Yes'?'N/A':(!pocEnd?'Unknown':(pocEnd<now?'Expired':(du(pocEnd)<=30?'Expiring Soon':'Active'))),notes:notes}
 }
 // FETCH CUSTOMER MASTER
@@ -158,8 +158,8 @@ return tp(0).catch(function(e){setCS(false,e.message)})}
 function dlExcel(path,site){return fetch(site+"/_api/web/GetFileByServerRelativeUrl('"+path.replace(/'/g,"''")+"')/$value",{headers:{'Authorization':'Bearer '+accessToken}}).then(function(r){if(!r.ok)throw new Error('DL fail');return r.arrayBuffer()}).then(function(buf){if(typeof XLSX==='undefined')return loadS('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').then(function(){return pXL(buf)});return pXL(buf)}).then(function(){setCS(true,C.length+' customers');renderAll()}).catch(function(e){setCS(false,e.message)})}
 function loadS(s){return new Promise(function(r,j){var e=document.createElement('script');e.src=s;e.onload=r;e.onerror=j;document.head.appendChild(e)})}
 function pXL(buf){var wb=XLSX.read(buf,{type:'array'}),sn=wb.SheetNames.indexOf('CS Tracker')!==-1?'CS Tracker':wb.SheetNames[0],rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''}),vals=rows.slice(2);if(!vals||vals.length<2)return;var hdrs=vals[0].map(function(h){return(h||'').toString().trim()});C=[];for(var i=1;i<vals.length;i++){var row=vals[i],o={};hdrs.forEach(function(h,idx){o[h]=row[idx]!==undefined?row[idx]:''});if(o['CUSTOMER_NAME']||o['CUSTOMER_ID'])C.push(pCR(o))}}
-function pCR(r){var init=r['Initiation']?new Date(r['Initiation']):null,end=r['End']?new Date(r['End']):null;
-return{custId:String(r['CUSTOMER_ID']||'').trim(),name:r['CUSTOMER_NAME']||'Unknown',ae:r['AE']||'',csm:r['CSM']||'',stage:r['Stage']||'',publishActivity:r['PUBLISH_ACTIVITY']||'',ticketActivity:parseInt(r['TICKET_ACTIVITY'])||0,activeStations:parseInt(r['ACTIVE_STATIONS'])||0,inactiveStations:parseInt(r['INACTIVE_STATIONS'])||0,totalStations:parseInt(r['TOTAL_STATIONS'])||0,initiation:init,implEnd:end,implDays:init&&end?Math.round((end-init)/864e5):null,implInProgress:init&&!end,implComplete:init&&end,health:r['Health']||'',rag:r['RAG']||'',upsellScore:parseFloat(r['UPSELL_SCORE'])||0,churnScore:parseFloat(r['CHURN_SCORE'])||0,mrrJan:parseFloat(r['MRR JAN 2026'])||0,contractDate:r['CONTRACT DATE']?new Date(r['CONTRACT DATE']):null,renewalDate:r['RENEWAL DATE']?new Date(r['RENEWAL DATE']):null,latestUpdate:r['Latest Update']||''}}
+function pCR(r){var init=parseExcelDate(r['Initiation']),end=parseExcelDate(r['End']);
+return{custId:String(r['CUSTOMER_ID']||'').trim(),name:r['CUSTOMER_NAME']||'Unknown',ae:r['AE']||'',csm:r['CSM']||'',stage:r['Stage']||'',publishActivity:r['PUBLISH_ACTIVITY']||'',ticketActivity:parseInt(r['TICKET_ACTIVITY'])||0,activeStations:parseInt(r['ACTIVE_STATIONS'])||0,inactiveStations:parseInt(r['INACTIVE_STATIONS'])||0,totalStations:parseInt(r['TOTAL_STATIONS'])||0,initiation:init,implEnd:end,implDays:init&&end?Math.round((end-init)/864e5):null,implInProgress:init&&!end,implComplete:init&&end,health:r['Health']||'',rag:r['RAG']||'',upsellScore:parseFloat(r['UPSELL_SCORE'])||0,churnScore:parseFloat(r['CHURN_SCORE'])||0,mrrJan:parseFloat(r['MRR JAN 2026'])||0,contractDate:parseExcelDate(r['CONTRACT DATE']),renewalDate:parseExcelDate(r['RENEWAL DATE']),latestUpdate:r['Latest Update']||''}}
 // JOIN
 var _m=null;function cm(){if(!_m||_m._l!==C.length){_m={_l:C.length};C.forEach(function(c){if(c.custId)_m[c.custId.toLowerCase()]=c})}return _m}
 function gc(d){if(!C.length)return null;var k=String(d.clientId||'').trim().toLowerCase();return k?(cm()[k]||null):null}
@@ -179,13 +179,14 @@ function setS(ok,m){var e=document.getElementById('status');e.textContent=ok?'�
 function setCS(ok,m){document.getElementById('custStatus').innerHTML=ok?'<code class="ok">👥 '+m+'</code>':'<code class="warn">⚠️ '+m+'</code>'}
 function updateTime(){document.getElementById('timer').textContent='Updated '+new Date().toLocaleTimeString()}
 function dI(l,v){return'<div class="detail-item"><div class="di-l">'+l+'</div><div class="di-v">'+(v||'—')+'</div></div>'}
+function parseExcelDate(v){if(!v)return null;if(v instanceof Date)return isNaN(v)?null:v;if(typeof v==='number'){var d=new Date((v-25569)*86400000);return isNaN(d)?null:d}var d=new Date(v);return isNaN(d)?null:d}
 function card(l,v,s,a,dr){return'<div class="sc an" data-a="'+a+'"'+(dr?' data-drill="'+dr+'"':'')+' style="cursor:pointer"><div class="lb">'+l+'</div><div class="vl" style="font-size:'+(String(v).length>8?'18px':'26px')+'">'+v+'</div><div class="sb">'+s+'</div></div>'}
 function bar(label,val,max,color,drillKey){return'<div class="br"'+(drillKey?' data-drill="'+drillKey+'"':'')+' style="cursor:pointer"><div class="bl">'+label+'</div><div class="bt"><div class="bf '+color+'" style="width:'+Math.max(val/max*100,8)+'%">'+val+'</div></div></div>'}
 function barV(label,count,amount,max,color,drillKey){return'<div class="br"'+(drillKey?' data-drill="'+drillKey+'"':'')+' style="cursor:pointer"><div class="bl">'+label+'</div><div class="bt"><div class="bf '+color+'" style="width:'+Math.max(count/max*100,8)+'%">'+count+' · '+$(amount)+'</div></div></div>'}
 // ═══════════════════════════════════════════
 //  RENDER ALL
 // ═══════════════════════════════════════════
-function renderAll(){var n=new Date();document.getElementById('sub').textContent=D.length+' scopes · '+(C.length?C.length+' customers · ':'')+(MO[n.getMonth()])+' '+n.getFullYear();rAEF();rAct();rPoc();rImpl();rRen()}
+function renderAll(){var n=new Date();document.getElementById('sub').textContent=D.length+' scopes · '+(C.length?C.length+' customers · ':'')+(MO[n.getMonth()])+' '+n.getFullYear();rAEF();try{rAct()}catch(e){console.error('Activity:',e)}try{rPoc()}catch(e){console.error('POC:',e)}try{rImpl()}catch(e){console.error('Impl:',e)}try{rRen()}catch(e){console.error('Renewals:',e)}}
 
 // ═══════════════════════════════════════════
 //  AE/CSM FILTERS
