@@ -189,7 +189,7 @@ function barV(label,count,amount,max,color,drillKey){return'<div class="br"'+(dr
 // ═══════════════════════════════════════════
 //  RENDER ALL
 // ═══════════════════════════════════════════
-function renderAll(){var n=new Date();document.getElementById('sub').textContent=D.length+' scopes · '+(C.length?C.length+' customers · ':'')+(MO[n.getMonth()])+' '+n.getFullYear();rAEF();try{rAct()}catch(e){console.error('Activity:',e)}try{rPoc()}catch(e){console.error('POC:',e)}try{rImpl()}catch(e){console.error('Impl:',e)}try{rRen()}catch(e){console.error('Renewals:',e)}}
+function renderAll(){var n=new Date();document.getElementById('sub').textContent=D.length+' scopes · '+(C.length?C.length+' customers · ':'')+(MO[n.getMonth()])+' '+n.getFullYear();rAEF();try{rAct()}catch(e){console.error('Activity:',e)}try{rPoc()}catch(e){console.error('POC:',e)}try{rImpl()}catch(e){console.error('Impl:',e);document.getElementById('implSummary').innerHTML='<div class="empty" style="grid-column:1/-1">Impl error: '+e.message+'</div>'}try{rRen()}catch(e){console.error('Renewals:',e);document.getElementById('renSummary').innerHTML='<div class="empty" style="grid-column:1/-1">Renewals error: '+e.message+'</div>'}}
 
 // ═══════════════════════════════════════════
 //  AE/CSM FILTERS
