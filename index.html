@@ -100,6 +100,7 @@ tbody td{padding:8px 14px;font-size:11px;color:var(--t2)}tbody td:first-child{co
     <div class="tab" data-tab="poc">🧪 POC</div>
     <div class="tab" data-tab="impl">🔧 Implementations</div>
     <div class="tab" data-tab="renewals">🔄 Renewals</div>
+    <div class="tab" data-tab="actuals">💰 Actuals</div>
   </div>
   <!-- EXEC SUMMARY -->
   <div class="cnt" id="execCnt"><div class="row" id="execCards"></div><div class="chart-grid" id="execCharts"></div></div>
@@ -137,6 +138,16 @@ tbody td{padding:8px 14px;font-size:11px;color:var(--t2)}tbody td:first-child{co
     <div class="chart-grid"><div class="cs"><h2>By Term Type per Bucket</h2><div id="renTermChart"></div></div><div class="cs"><h2>Month-to-Month Focus</h2><div id="renMtmSection"></div></div></div>
     <div class="ts-wrap"><div class="ts-hdr"><h2><span class="dot" style="background:var(--amber)"></span> Renewals Detail</h2><div class="fg" id="renFilters"></div></div><div class="tw"><table><thead id="renTh"></thead><tbody id="renTb"></tbody></table></div></div>
   </div>
+  <!-- ACTUALS -->
+  <div class="cnt off" id="actualsCnt">
+    <div class="row" id="actlSummary"></div>
+    <div class="chart-grid"><div class="cs"><h2>Revenue by Customer (Top 15)</h2><div id="actlCustChart"></div></div><div class="cs"><h2>Revenue by Transaction Type</h2><div id="actlTypeChart"></div></div></div>
+    <div class="cs"><h2>Monthly Revenue Trend</h2><div id="actlTrendChart"></div></div>
+    <div class="chart-grid"><div class="cs"><h2>Invoiced vs Contracted ARR</h2><div id="actlVsARR"></div></div><div class="cs"><h2>Credit Memos ⚠️</h2><div id="actlCredits"></div></div></div>
+    <div class="cs"><h2>AR Aging Summary</h2><div id="actlARAging"></div></div>
+    <div class="cs"><h2>Sales by Product/Service</h2><div id="actlSales"></div></div>
+    <div class="ts-wrap"><div class="ts-hdr"><h2><span class="dot" style="background:var(--amber)"></span> Transaction Detail</h2></div><div class="tw"><table><thead id="actlTh"></thead><tbody id="actlTb"></tbody></table></div></div>
+  </div>
 </div>
 <div class="mo" id="drillMo"><div class="ml"><div class="mh"><h3 id="drillT">Detail</h3><div style="display:flex;gap:8px;align-items:center"><button class="export-btn" id="exportBtn" style="display:none">📥 Export CSV</button><button class="mc" id="drillX">✕</button></div></div><div class="mb" id="drillB"></div></div></div>
 <script>
@@ -146,7 +157,7 @@ var loginRequest={scopes:["https://priceeasy1.sharepoint.com/.default"]};
 var msalInstance=new msal.PublicClientApplication(msalConfig);var accessToken=null;
 var SITE='https://priceeasy1.sharepoint.com/sites/AccountingFinance',GUID='47f480c2-eb0f-4408-b62a-b0b3d85d88e4';
 var CUST_KNOWN_PATH='/Customer Master/Customer Master and Tracker (All Teams).xlsx',CUST_FILE_GUID='6b85d56a-1ad8-4dac-a1b4-6466ca6a4f80';
-var D=[],C=[],T=[],curTab='exec',sF='all',rF='all',aeF='all',csmF='all',_drillData=null;
+var D=[],C=[],T=[],AR=[],SP=[],curTab='exec',sF='all',rF='all',aeF='all',csmF='all',_drillData=null;
 function normName(n){return(n||'').toLowerCase().replace(/[,.]|\b(inc|llc|ltd|corp|co|company|the)\b/gi,'').replace(/\s+/g,' ').trim()}
 msalInstance.handleRedirectPromise().then(function(r){if(r){accessToken=r.accessToken;go()}else{var a=msalInstance.getAllAccounts();if(a.length>0)msalInstance.acquireTokenSilent({scopes:loginRequest.scopes,account:a[0]}).then(function(t){accessToken=t.accessToken;go()}).catch(function(){})}}).catch(function(e){console.error(e)});
 document.getElementById('loginBtn').addEventListener('click',function(){msalInstance.loginRedirect(loginRequest)});
@@ -173,12 +184,55 @@ function pCR(r){var init=pED(r['Initiation']),end=pED(r['End']);
 return{custId:String(r['CUSTOMER_ID']||'').trim(),name:r['CUSTOMER_NAME']||'Unknown',ae:r['AE']||'',csm:r['CSM']||'',stage:r['Stage']||'',pub:r['PUBLISH_ACTIVITY']||'',tickets:parseInt(r['Ticket-Active'])||0,actSt:parseInt(r['ACTIVE_STATIONS'])||0,inSt:parseInt(r['INACTIVE_STATIONS'])||0,totSt:parseInt(r['TOTAL_STATIONS'])||0,init:init,iEnd:end,iDays:init&&end?Math.round((end-init)/864e5):null,iProg:init&&!end?true:false,iDone:init&&end?true:false,health:r['Health']||'',rag:r['RAG']||'',upsell:parseFloat(r['UPSELL_SCORE'])||0,churn:parseFloat(r['CHURN_SCORE'])||0,mrrJan:parseFloat(r['MRR JAN 2026'])||0,cDate:pED(r['CONTRACT DATE']),rDate:pED(r['RENEWAL DATE']),update:r['Latest Update']||''}}
 
 // ═══ FETCH TRANSACTION LIST ═══
+var TXN_GUID='7f734990-068b-4fa6-9359-8f443358df50';
 function fetchTxn(){if(!accessToken)return;
-var path='/sites/AccountingFinance/Shared Documents/TRANSACTION LIST BY CUSTOMER YTD.xlsx';
-var url=SITE+"/_api/web/GetFileByServerRelativeUrl('"+path.replace(/'/g,"''")+"')/$value";
-fetch(url,{headers:{'Authorization':'Bearer '+accessToken}}).then(function(r){if(!r.ok)throw new Error('Txn DL fail');return r.arrayBuffer()}).then(function(buf){return pTXL(buf)}).then(function(){console.log('Txn loaded:',T.length);renderAll()}).catch(function(e){console.error('Txn:',e)})}
-function pTXL(buf){var wb=XLSX.read(buf,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws,{defval:''});
-T=rows.map(function(r){return{customer:(r['Customer']||'').trim(),date:pED(r['Date']),type:(r['Transaction type']||r['Transaction Type']||'').trim(),num:r['Num']||'',posting:(r['Posting (Y/N)']||'').toString().trim(),memo:r['Memo/Description']||'',account:r['Account']||'',amount:parseFloat(r['Amount'])||0,clientId:String(r['Client ID']||'').trim()}}).filter(function(t){return t.customer||t.clientId})}
+var h={'Accept':'application/json;odata=verbose','Authorization':'Bearer '+accessToken};
+// Try search first
+fetch("https://priceeasy1.sharepoint.com/_api/search/query?querytext='TRANSACTION+LIST+BY+CUSTOMER+YTD'&selectproperties='Path'&rowlimit=10",{headers:h}).then(function(r){return r.json()}).then(function(d){
+  var rows=d.d.query.PrimaryQueryResult.RelevantResults.Table.Rows.results;
+  var p=rows.map(function(r){var c=r.Cells.results;var path=c.find(function(x){return x.Key==='Path'});return path?path.Value:''}).find(function(p){return p.toLowerCase().includes('transaction')&&p.toLowerCase().includes('xlsx')});
+  if(p){console.log('Txn found via search:',p);var sr=p.replace('https://priceeasy1.sharepoint.com','');var site=sr.indexOf('/sites/')===0?'https://priceeasy1.sharepoint.com'+sr.substring(0,sr.indexOf('/',8)):'https://priceeasy1.sharepoint.com';return dlTxn(sr,site)}
+  return tryTxnPaths()
+}).catch(function(){return tryTxnPaths()})}
+function tryTxnPaths(){
+  var h={'Accept':'application/json;odata=verbose','Authorization':'Bearer '+accessToken};
+  var fn='TRANSACTION LIST BY CUSTOMER YTD.xlsx';
+  var paths=['/sites/AccountingFinance/Shared Documents/'+fn,'/sites/AccountingFinance/Shared Documents/General/'+fn,'/Shared Documents/'+fn];
+  function tp(i){
+    if(i>=paths.length){
+      // GUID fallback
+      return fetch(SITE+"/_api/web/GetFileById(guid'"+TXN_GUID+"')?$select=ServerRelativeUrl",{headers:h}).then(function(r){if(!r.ok)throw new Error('Txn GUID fail');return r.json()}).then(function(d){var p=d.d?d.d.ServerRelativeUrl:d.ServerRelativeUrl;if(!p)throw new Error('No path');console.log('Txn GUID found:',p);return dlTxn(p,SITE)}).catch(function(e){console.error('Txn not found:',e)})}
+    var path=paths[i],site=path.indexOf('/sites/')===0?'https://priceeasy1.sharepoint.com'+path.substring(0,path.indexOf('/',8)):'https://priceeasy1.sharepoint.com';
+    return fetch(site+"/_api/web/GetFileByServerRelativeUrl('"+path.replace(/'/g,"''")+"')?$select=Exists",{headers:h}).then(function(r){if(!r.ok)return tp(i+1);return r.json().then(function(d){return(d.d||d).Exists?dlTxn(path,site):tp(i+1)})}).catch(function(){return tp(i+1)})}
+  return tp(0)}
+function dlTxn(path,site){
+  console.log('Downloading txn from:',path);
+  return fetch(site+"/_api/web/GetFileByServerRelativeUrl('"+path.replace(/'/g,"''")+"')/$value",{headers:{'Authorization':'Bearer '+accessToken}}).then(function(r){if(!r.ok)throw new Error('Txn DL fail: '+r.status);return r.arrayBuffer()}).then(function(buf){return pTXL(buf)}).then(function(){console.log('Txn loaded:',T.length);renderAll()}).catch(function(e){console.error('Txn error:',e)})}
+function pTXL(buf){var wb=XLSX.read(buf,{type:'array',cellDates:true});
+  console.log('Txn sheets:',wb.SheetNames);
+  // Sheet 1: Transaction List Detail
+  var ws=wb.Sheets['Transaction List Detail']||wb.Sheets[wb.SheetNames[0]];
+  var rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+  console.log('Txn rows:',rows.length,rows.length>0?Object.keys(rows[0]):'no data');
+  T=rows.map(function(r){
+    var cust=r['Customer']||r['customer']||'';var date=r['Date']||r['date']||'';
+    var type=r['Transaction type']||r['Transaction Type']||r['Type']||'';
+    var amount=r['Amount']||r['amount']||0;var cid=r['Client ID']||r['Client Id']||r['ClientID']||'';
+    return{customer:String(cust).trim(),date:pED(date),type:String(type).trim(),num:String(r['Num']||''),posting:String(r['Posting (Y/N)']||r['Posting']||'').trim(),memo:String(r['Memo/Description']||r['Memo']||''),account:String(r['Account']||''),amount:parseFloat(amount)||0,clientId:String(cid).trim()}
+  }).filter(function(t){return t.customer||t.clientId});
+  console.log('Txn parsed:',T.length);
+  // Sheet 2: AR Aging
+  var arSheet=wb.Sheets['AR Aging']||wb.Sheets['AR aging']||null;
+  if(arSheet){var arRows=XLSX.utils.sheet_to_json(arSheet,{defval:'',raw:false});
+    AR=arRows.map(function(r){return{name:(r['Customer Name']||r['Customer']||'').trim(),current:parseFloat(r['Current'])||0,d1_30:parseFloat(r['1 - 30']||r['1-30'])||0,d31_60:parseFloat(r['31 - 60']||r['31-60'])||0,d61_90:parseFloat(r['61 - 90']||r['61-90'])||0,d91:parseFloat(r['91 And Over']||r['91 and Over']||r['91+'])||0,total:parseFloat(r['Total'])||0}}).filter(function(r){return r.name&&r.total!==0});
+    console.log('AR parsed:',AR.length)}
+  // Sheet 3: Sales by Product/Service
+  var spSheet=wb.Sheets['Sales by Product']||wb.Sheets['Sales by Product Service']||wb.Sheets['Sales by Product/Service']||null;
+  if(!spSheet){wb.SheetNames.forEach(function(sn){if(sn.toLowerCase().includes('sales')&&!spSheet)spSheet=wb.Sheets[sn]})}
+  if(spSheet){var spRows=XLSX.utils.sheet_to_json(spSheet,{defval:'',raw:false});
+    SP=spRows.map(function(r){return{product:(r['Product/Service']||r['Product']||r['Service']||'').trim(),qty:parseFloat(r['Quantity']||r['Qty'])||0,amount:parseFloat(r['Amount'])||0,pctSales:parseFloat(r['% of Sales']||r['% Sales'])||0,avgPrice:parseFloat(r['Avg Price']||r['Average Price'])||0,cogs:parseFloat(r['COGS'])||0,grossMargin:parseFloat(r['Gross Margin'])||0,grossMarginPct:parseFloat(r['Gross Margin %']||r['Margin %'])||0}}).filter(function(r){return r.product});
+    console.log('Sales parsed:',SP.length)}
+}
 // Transaction join: match T records to D records via clientId or normalized name
 function getTxn(clientId,clientName){
   var results=[];var cid=(clientId||'').toLowerCase(),cname=normName(clientName);
@@ -213,7 +267,7 @@ function card(l,v,s,a,dr,trd){return'<div class="sc" data-a="'+a+'"'+(dr?' data-
 function bar(l,v,mx,col,dk){return'<div class="br"'+(dk?' data-drill="'+dk+'"':'')+' style="cursor:pointer"><div class="bl">'+l+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(v/mx*100,8)+'%">'+v+'</div></div></div>'}
 function barV(l,c,a,mx,col,dk){return'<div class="br"'+(dk?' data-drill="'+dk+'"':'')+' style="cursor:pointer"><div class="bl">'+l+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(c/mx*100,8)+'%">'+c+' · '+$(a)+'</div></div></div>'}
 // ═══ RENDER ALL ═══
-function renderAll(){var n=new Date();document.getElementById('sub').textContent=D.length+' scopes · '+(C.length?C.length+' customers · ':'')+(MN[n.getMonth()])+' '+n.getFullYear();try{rExec()}catch(e){console.error('Exec:',e)}try{rAEF();rAct()}catch(e){console.error('Act:',e)}try{rPoc()}catch(e){console.error('POC:',e)}try{rImpl()}catch(e){console.error('Impl:',e)}try{rRen()}catch(e){console.error('Ren:',e)}}
+function renderAll(){var n=new Date();document.getElementById('sub').textContent=D.length+' scopes · '+(C.length?C.length+' customers · ':'')+(T.length?T.length+' txns · ':'')+(MN[n.getMonth()])+' '+n.getFullYear();try{rExec()}catch(e){console.error('Exec:',e)}try{rAEF();rAct()}catch(e){console.error('Act:',e)}try{rPoc()}catch(e){console.error('POC:',e)}try{rImpl()}catch(e){console.error('Impl:',e)}try{rRen()}catch(e){console.error('Ren:',e)}try{rActuals()}catch(e){console.error('Actuals:',e)}}
 
 // ═══ TAB 0: EXECUTIVE SUMMARY ═══
 function rExec(){
@@ -228,9 +282,7 @@ function rExec(){
     card('Active POCs',activePocs.length,pocs.length+' total','orange','poc-active'),
     card('In Implementation',implProg.length,'Clients in progress','green','impl-inprogress'),
     card('Renewals ≤30d',up.length,$(sv(up))+' ARR','red','ren-0-30'),
-    card('Revenue at Risk',$(riskARR),'Churn flagged','rose','ren-risk-all'),
-    T.length?card('Invoiced YTD',$(txnSummary(T).invoiced),txnSummary(T).collectionRate+'% collected','amber','txn-all'):'',
-    T.length?card('Collection Rate',txnSummary(T).collectionRate+'%',$(txnSummary(T).paid)+' received','violet','txn-all'):''
+    card('Revenue at Risk',$(riskARR),'Churn flagged','rose','ren-risk-all')
   ].join('');
   // Mini charts
   var scopes=[...new Set(all.map(function(d){return d.scope}))];var sMx=1;var sData={};scopes.forEach(function(s){var cnt=all.filter(function(d){return d.scope===s&&inR(d.effectiveDate,y)}).length;sData[s]=cnt;if(cnt>sMx)sMx=cnt});
@@ -395,6 +447,64 @@ function rRen(){
   document.getElementById('renTb').innerHTML=filtered.slice(0,80).map(function(d){var x=du(d.endDate),u=x<=30?'red':x<=60?'amber':x<=90?'blue':'green';var cs=gc(d),pub=cs?cs.pub:'—',pubCol=isPubHigh(pub)?'red':isPubRisk(pub)&&!isPubHigh(pub)?'amber':'green';var rc=riskClients.find(function(r){return r.d.id===d.id});
     return'<tr data-id="'+d.id+'"><td>'+d.client+'</td><td><span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span></td><td>'+d.term+'</td><td><span class="bd bd-'+(d.autoRenewal==='Annual'?'green':'orange')+'">'+(d.autoRenewal||'—')+'</span></td><td>'+fd(d.endDate)+'</td><td><span class="bd bd-'+u+'">'+x+'d</span></td><td><span class="bd bd-'+pubCol+'">'+pub+'</span></td><td>'+$(d.value)+'</td><td>'+(rc?'<span class="bd bd-'+(rc.level==='high'?'red':'amber')+'">'+rc.score+'pt</span>':'—')+'</td></tr>'}).join('')||'<tr><td colspan="9"><div class="empty">No renewals.</div></td></tr>';
 }
+// ═══ TAB 5: ACTUALS ═══
+function rActuals(){
+  if(!T.length){document.getElementById('actlSummary').innerHTML=card('Loading…','…','Waiting for transaction data','cyan','');return}
+  var c=MR(0),p=MR(-1),y=YTD(),n=new Date();
+  var cTxn=T.filter(function(t){return inR(t.date,c)}),pTxn=T.filter(function(t){return inR(t.date,p)}),yTxn=T.filter(function(t){return inR(t.date,y)});
+  var cS=txnSummary(cTxn),pS=txnSummary(pTxn),yS=txnSummary(yTxn),allS=txnSummary(T);
+  // Credit memos as churn signal
+  var credits=T.filter(function(t){return t.type.toLowerCase().includes('credit')});
+  var cCredits=credits.filter(function(t){return inR(t.date,c)}),yCredits=credits.filter(function(t){return inR(t.date,y)});
+  var cCredAmt=0;cCredits.forEach(function(t){cCredAmt+=Math.abs(t.amount)});
+  var yCredAmt=0;yCredits.forEach(function(t){yCredAmt+=Math.abs(t.amount)});
+  document.getElementById('actlSummary').innerHTML=[
+    card('Invoiced Mo',$(cS.invoiced),MN[n.getMonth()],'cyan','actltxn-inv-current',trend(cS.invoiced,pS.invoiced)),
+    card('Invoiced Prior',$(pS.invoiced),MN[n.getMonth()===0?11:n.getMonth()-1],'blue','actltxn-inv-prior'),
+    card('Invoiced YTD',$(yS.invoiced),yTxn.length+' transactions','green','actltxn-inv-ytd'),
+    card('Payments Mo',$(cS.paid),cS.collectionRate+'% collected','cyan','actltxn-pay-current'),
+    card('Payments YTD',$(yS.paid),yS.collectionRate+'% collected','green','actltxn-pay-ytd'),
+    card('Collection Rate',yS.collectionRate+'%',$(yS.paid)+' of '+$(yS.invoiced),'amber','actltxn-all'),
+    card('Outstanding AR',$(allS.invoiced-allS.paid-allS.credits),'Net open','red','actltxn-ar'),
+    card('Credit Memos Mo',$(cCredAmt),cCredits.length+' memos ⚠️','rose','actltxn-credits')
+  ].join('');
+  // Revenue by Customer
+  var custMap={};T.filter(function(t){return t.type.toLowerCase().includes('invoice')}).forEach(function(t){var k=t.customer||'Unknown';if(!custMap[k])custMap[k]=0;custMap[k]+=t.amount});
+  var cSrt=Object.keys(custMap).sort(function(a,b){return custMap[b]-custMap[a]}),cMx=custMap[cSrt[0]]||1;
+  document.getElementById('actlCustChart').innerHTML=cSrt.slice(0,15).map(function(k,i){return'<div class="br" data-drill="actlcust-'+encodeURIComponent(k)+'" style="cursor:pointer"><div class="bl" style="width:140px;font-size:9px">'+k.substring(0,25)+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(custMap[k]/cMx*100,8)+'%">'+$(custMap[k])+'</div></div></div>'}).join('')||'<div class="empty">No invoice data</div>';
+  // Revenue by Type
+  var typeMap={};T.forEach(function(t){var k=t.type||'Other';if(!typeMap[k])typeMap[k]={c:0,v:0};typeMap[k].c++;typeMap[k].v+=t.amount});
+  var tSrt=Object.keys(typeMap).sort(function(a,b){return Math.abs(typeMap[b].v)-Math.abs(typeMap[a].v)}),tMx=Math.max.apply(null,tSrt.map(function(k){return Math.abs(typeMap[k].v)}).concat([1]));
+  document.getElementById('actlTypeChart').innerHTML=tSrt.map(function(k,i){var col=k.toLowerCase().includes('invoice')?'green':k.toLowerCase().includes('payment')?'cyan':k.toLowerCase().includes('credit')?'red':CL[i%CL.length];return'<div class="br" data-drill="actltype-'+encodeURIComponent(k)+'" style="cursor:pointer"><div class="bl">'+k+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(Math.abs(typeMap[k].v)/tMx*100,8)+'%">'+typeMap[k].c+' · '+$(typeMap[k].v)+'</div></div></div>'}).join('');
+  // Monthly trend
+  var moMap={};T.filter(function(t){return t.type.toLowerCase().includes('invoice')&&t.date}).forEach(function(t){var k=t.date.getFullYear()+'-'+(t.date.getMonth()<9?'0':'')+(t.date.getMonth()+1);if(!moMap[k])moMap[k]=0;moMap[k]+=t.amount});
+  var moKeys=Object.keys(moMap).sort(),moMx=Math.max.apply(null,Object.values(moMap).concat([1]));
+  document.getElementById('actlTrendChart').innerHTML=moKeys.map(function(k,i){var label=MN[parseInt(k.split('-')[1])-1]+' '+k.split('-')[0];return'<div class="br"><div class="bl">'+label+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(moMap[k]/moMx*100,8)+'%">'+$(moMap[k])+'</div></div></div>'}).join('')||'<div class="empty">No monthly data</div>';
+  // Invoiced vs ARR
+  var arrByClient={};D.forEach(function(d){if(d.client){var k=normName(d.client);if(!arrByClient[k])arrByClient[k]=0;arrByClient[k]+=d.value}});
+  var vsData=cSrt.slice(0,10).map(function(k){var nk=normName(k);return{name:k,invoiced:custMap[k],arr:arrByClient[nk]||0}});
+  var vsMx=Math.max.apply(null,vsData.map(function(d){return Math.max(d.invoiced,d.arr)}).concat([1]));
+  document.getElementById('actlVsARR').innerHTML=vsData.map(function(d,i){var ratio=d.arr>0?(d.invoiced/d.arr*100).toFixed(0)+'%':'N/A';return'<div style="margin-bottom:8px"><div style="font-size:10px;color:var(--t2);margin-bottom:3px">'+d.name.substring(0,25)+' <span style="color:var(--t3)">('+ratio+' of ARR)</span></div><div class="br" style="margin-bottom:2px"><div class="bl" style="width:60px">Invoiced</div><div class="bt"><div class="bf green" style="width:'+Math.max(d.invoiced/vsMx*100,5)+'%">'+$(d.invoiced)+'</div></div></div><div class="br"><div class="bl" style="width:60px">ARR</div><div class="bt"><div class="bf blue" style="width:'+Math.max(d.arr/vsMx*100,5)+'%">'+$(d.arr)+'</div></div></div></div>'}).join('')||'<div class="empty">No comparison data</div>';
+  // Credit memos detail
+  var credByClient={};credits.forEach(function(t){var k=t.customer||'Unknown';if(!credByClient[k])credByClient[k]={c:0,v:0};credByClient[k].c++;credByClient[k].v+=Math.abs(t.amount)});
+  var crSrt=Object.keys(credByClient).sort(function(a,b){return credByClient[b].v-credByClient[a].v}),crMx=credByClient[crSrt[0]]?credByClient[crSrt[0]].v:1;
+  document.getElementById('actlCredits').innerHTML=(crSrt.length?crSrt.slice(0,10).map(function(k,i){return barV(k.substring(0,25),credByClient[k].c,credByClient[k].v,crMx,'red','actlcred-'+encodeURIComponent(k))}).join(''):'<div class="empty">No credit memos</div>');
+  // AR Aging
+  if(AR.length){var totCur=0,tot30=0,tot60=0,tot90=0,tot91=0;AR.forEach(function(r){totCur+=r.current;tot30+=r.d1_30;tot60+=r.d31_60;tot90+=r.d61_90;tot91+=r.d91});
+    var arMx=Math.max(totCur,tot30,tot60,tot90,tot91,1);
+    document.getElementById('actlARAging').innerHTML='<div style="margin-bottom:12px;display:flex;gap:20px;flex-wrap:wrap;text-align:center"><div style="flex:1"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--green)">'+$(totCur)+'</div><div style="font-size:10px;color:var(--t3)">Current</div></div><div style="flex:1"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--cyan)">'+$(tot30)+'</div><div style="font-size:10px;color:var(--t3)">1-30</div></div><div style="flex:1"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--amber)">'+$(tot60)+'</div><div style="font-size:10px;color:var(--t3)">31-60</div></div><div style="flex:1"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--orange)">'+$(tot90)+'</div><div style="font-size:10px;color:var(--t3)">61-90</div></div><div style="flex:1"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--red)">'+$(tot91)+'</div><div style="font-size:10px;color:var(--t3)">91+</div></div></div>'+
+    AR.sort(function(a,b){return b.total-a.total}).slice(0,20).map(function(r,i){var overdue=r.d31_60+r.d61_90+r.d91;var col=overdue>0?'red':r.d1_30>0?'amber':'green';return'<div class="br" data-drill="araging-'+encodeURIComponent(r.name)+'" style="cursor:pointer"><div class="bl" style="width:140px;font-size:9px">'+r.name.substring(0,25)+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(r.total/AR[0].total*100,8)+'%">'+$(r.total)+(overdue>0?' ('+$(overdue)+' overdue)':'')+'</div></div></div>'}).join('')}
+  else{document.getElementById('actlARAging').innerHTML='<div class="empty">AR Aging data not loaded</div>'}
+  // Sales by Product
+  if(SP.length){var spMx=Math.max.apply(null,SP.map(function(s){return Math.abs(s.amount)}).concat([1]));
+    document.getElementById('actlSales').innerHTML=SP.sort(function(a,b){return Math.abs(b.amount)-Math.abs(a.amount)}).map(function(s,i){var mCol=s.grossMarginPct>=50?'green':s.grossMarginPct>=20?'amber':'red';return'<div class="br" data-drill="actlprod-'+encodeURIComponent(s.product)+'" style="cursor:pointer"><div class="bl" style="width:150px;font-size:9px">'+s.product.substring(0,30)+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(Math.abs(s.amount)/spMx*100,8)+'%">'+$(s.amount)+' · '+s.qty+' qty · '+s.grossMarginPct.toFixed(0)+'% margin</div></div></div>'}).join('')}
+  else{document.getElementById('actlSales').innerHTML='<div class="empty">Sales data not loaded</div>'}
+  // Transaction table
+  document.getElementById('actlTh').innerHTML='<tr><th>Customer</th><th>Date</th><th>Type</th><th>Num</th><th>Account</th><th>Amount</th></tr>';
+  var recent=T.slice().sort(function(a,b){return(b.date||0)-(a.date||0)});
+  document.getElementById('actlTb').innerHTML=recent.slice(0,60).map(function(t){var col=t.type.toLowerCase().includes('invoice')?'green':t.type.toLowerCase().includes('payment')?'cyan':t.type.toLowerCase().includes('credit')?'red':'violet';return'<tr><td>'+t.customer+'</td><td>'+fd(t.date)+'</td><td><span class="bd bd-'+col+'">'+t.type+'</span></td><td>'+t.num+'</td><td style="font-size:10px">'+t.account+'</td><td>'+$(t.amount)+'</td></tr>'}).join('')||'<tr><td colspan="6"><div class="empty">No transactions.</div></td></tr>';
+}
+
 // ═══ DRILLS + EXPORT ═══
 function drillItem(id){var d;D.forEach(function(x){if(x.id===id)d=x});if(!d)return;var cs=gc(d);document.getElementById('drillT').textContent=d.client;_drillData=null;document.getElementById('exportBtn').style.display='none';
   document.getElementById('drillB').innerHTML='<div class="detail-grid">'+dI('Order',d.title)+dI('Client',d.client)+dI('Client ID',d.clientId)+dI('AE',cs?cs.ae:'—')+dI('CSM',cs?cs.csm:'—')+dI('Scope','<span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span>')+dI('Type',d.clientType)+dI('Status','<span class="bd bd-'+sc(d.status)+'">'+d.status+'</span>')+dI('Term',d.term)+dI('Effective',fd(d.effectiveDate))+dI('End',fd(d.endDate))+dI('Days Left',d.endDate?du(d.endDate)+'d':'—')+dI('Auto-Renew',d.autoRenewal)+dI('Pilot',d.pilot)+(d.pilot==='Yes'?dI('POC End',fd(d.pocEnd))+dI('POC Status',d.pocStatus)+dI('POC Cost',$(d.pocTotalCost)):'')+dI('ARR',$(d.value))+dI('Equipment',$(d.equipment))+dI('Sites',''+d.siteQty)+'</div>'+(d.notes?'<div style="margin-top:10px"><div style="font-size:9px;color:var(--t3);margin-bottom:3px">NOTES</div><div style="font-size:11px;color:var(--t2)">'+d.notes+'</div></div>':'');
@@ -405,11 +515,14 @@ function drillCust(cid){var c;C.forEach(function(x){if(x.custId===cid)c=x});if(!
 function showScopeDrill(title,items){_drillData={type:'scope',items:items,title:title};document.getElementById('exportBtn').style.display='inline-block';document.getElementById('drillT').textContent=title+' ('+items.length+')';var sm={},tot=0;items.forEach(function(d){sm[d.scope]=(sm[d.scope]||0)+1;tot+=d.value});var h='<div class="ms">';Object.keys(sm).sort(function(a,b){return sm[b]-sm[a]}).forEach(function(k){h+='<span class="bd bd-'+bc(k)+'" style="padding:3px 8px">'+k+': '+sm[k]+'</span>'});h+='</div><div style="margin-bottom:10px;font-size:11px;color:var(--t2)">Total ARR: <strong style="color:var(--t1)">'+$(tot)+'</strong></div>';h+='<div class="tw"><table><thead><tr><th>Client</th><th>Scope</th><th>AE</th><th>CSM</th><th>Effective</th><th>ARR</th><th>Status</th></tr></thead><tbody>';items.sort(function(a,b){return(b.effectiveDate||0)-(a.effectiveDate||0)}).forEach(function(d){var cs=gc(d);h+='<tr data-id="'+d.id+'"><td>'+d.client+'</td><td><span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span></td><td>'+(cs?cs.ae:'—')+'</td><td>'+(cs?cs.csm:'—')+'</td><td>'+fd(d.effectiveDate)+'</td><td>'+$(d.value)+'</td><td><span class="bd bd-'+sc(d.status)+'">'+(d.status||'—')+'</span></td></tr>'});h+='</tbody></table></div>';document.getElementById('drillB').innerHTML=h;document.getElementById('drillMo').classList.add('open')}
 function showCustDrill(title,items){_drillData={type:'cust',items:items,title:title};document.getElementById('exportBtn').style.display='inline-block';document.getElementById('drillT').textContent=title+' ('+items.length+')';var h='<div class="tw"><table><thead><tr><th>Customer</th><th>AE</th><th>CSM</th><th>Stage</th><th>Publishing</th><th>Tickets</th><th>Stations</th></tr></thead><tbody>';items.forEach(function(c){var pubCol=isPubHigh(c.pub)?'red':c.isPubRisk(pub)&&!isPubHigh(pub)?'amber':'green';h+='<tr data-cid="'+c.custId+'"><td>'+c.name+'</td><td>'+(c.ae||'—')+'</td><td>'+(c.csm||'—')+'</td><td>'+(c.stage||'—')+'</td><td><span class="bd bd-'+pubCol+'">'+(c.pub||'—')+'</span></td><td>'+c.tickets+'</td><td>'+c.actSt+'/'+c.totSt+'</td></tr>'});h+='</tbody></table></div>';document.getElementById('drillB').innerHTML=h;document.getElementById('drillMo').classList.add('open')}
 
+function showTxnDrill(title,items){_drillData={type:'txn',items:items,title:title};document.getElementById('exportBtn').style.display='inline-block';document.getElementById('drillT').textContent=title+' ('+items.length+')';var tot=0;items.forEach(function(t){tot+=t.amount});var h='<div style="margin-bottom:10px;font-size:11px;color:var(--t2)">Total: <strong style="color:var(--t1)">'+$(tot)+'</strong></div>';h+='<div class="tw"><table><thead><tr><th>Customer</th><th>Date</th><th>Type</th><th>Num</th><th>Amount</th><th>Memo</th></tr></thead><tbody>';items.sort(function(a,b){return(b.date||0)-(a.date||0)}).forEach(function(t){var col=t.type.toLowerCase().includes('invoice')?'green':t.type.toLowerCase().includes('payment')?'cyan':'red';h+='<tr><td>'+t.customer+'</td><td>'+fd(t.date)+'</td><td><span class="bd bd-'+col+'">'+t.type+'</span></td><td>'+t.num+'</td><td>'+$(t.amount)+'</td><td style="font-size:9px;max-width:200px;overflow:hidden;text-overflow:ellipsis">'+t.memo+'</td></tr>'});h+='</tbody></table></div>';document.getElementById('drillB').innerHTML=h;document.getElementById('drillMo').classList.add('open')}
+
 // CSV EXPORT
 function exportCSV(){
   if(!_drillData)return;var rows=[],title=_drillData.title;
   if(_drillData.type==='scope'){rows.push(['Client','Scope','AE','CSM','Type','Effective','End','ARR','Status']);_drillData.items.forEach(function(d){var cs=gc(d);rows.push([d.client,d.scope,cs?cs.ae:'',cs?cs.csm:'',d.clientType,fd(d.effectiveDate),fd(d.endDate),d.value,d.status])})}
   else if(_drillData.type==='cust'){rows.push(['Customer','AE','CSM','Stage','Publishing','Tickets','Active Stations','Total Stations']);_drillData.items.forEach(function(c){rows.push([c.name,c.ae,c.csm,c.stage,c.pub,c.tickets,c.actSt,c.totSt])})}
+  else if(_drillData.type==='txn'){rows.push(['Customer','Date','Type','Num','Amount','Account','Memo']);_drillData.items.forEach(function(t){rows.push([t.customer,fd(t.date),t.type,t.num,t.amount,t.account,t.memo])})}
   var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"'}).join(',')}).join('\n');
   var blob=new Blob([csv],{type:'text/csv'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download=(title||'export').replace(/[^a-zA-Z0-9]/g,'_')+'.csv';a.click();URL.revokeObjectURL(url);
 }
@@ -454,11 +567,25 @@ function handleDrill(key){
   if(key.indexOf('ren-')===0){var rk=key.replace('ren-','');return showScopeDrill(rk+' Days',up.filter(function(d){return bk(d.endDate)===rk}))}
   if(key.indexOf('renbkt-')===0){var parts=key.replace('renbkt-','').split('-');var bkt=parts[0]+'-'+parts[1],term=parts[2];return showScopeDrill(bkt+' — '+term,up.filter(function(d){return bk(d.endDate)===bkt&&(term==='Annual'?d.autoRenewal==='Annual':term==='MtM'?d.autoRenewal==='Month to Month':true)}))}
   if(key==='txn-all'&&T.length){var s=txnSummary(T);_drillData={type:'scope',items:[],title:'Transactions'};document.getElementById('exportBtn').style.display='inline-block';document.getElementById('drillT').textContent='Transaction Summary ('+T.length+' transactions)';var byType={};T.forEach(function(t){var tt=t.type||'Other';if(!byType[tt])byType[tt]={c:0,v:0};byType[tt].c++;byType[tt].v+=t.amount});var h='<div style="margin-bottom:14px;font-size:12px;color:var(--t2)">Invoiced: <strong style="color:var(--t1)">'+$(s.invoiced)+'</strong> · Paid: <strong style="color:var(--green)">'+$(s.paid)+'</strong> · Credits: '+$(s.credits)+' · Collection: <strong>'+s.collectionRate+'%</strong></div>';h+='<div class="tw"><table><thead><tr><th>Type</th><th>Count</th><th>Amount</th></tr></thead><tbody>';Object.keys(byType).sort(function(a,b){return Math.abs(byType[b].v)-Math.abs(byType[a].v)}).forEach(function(k){h+='<tr><td>'+k+'</td><td>'+byType[k].c+'</td><td>'+$(byType[k].v)+'</td></tr>'});h+='</tbody></table></div>';document.getElementById('drillB').innerHTML=h;document.getElementById('drillMo').classList.add('open');return}
+  // Actuals drills
+  if(key.indexOf('actltxn-')===0){var ak=key.replace('actltxn-',''),c2=MR(0),p2=MR(-1),y2=YTD(),filtered=T;
+    if(ak==='inv-current')filtered=T.filter(function(t){return t.type.toLowerCase().includes('invoice')&&inR(t.date,c2)});
+    else if(ak==='inv-prior')filtered=T.filter(function(t){return t.type.toLowerCase().includes('invoice')&&inR(t.date,p2)});
+    else if(ak==='inv-ytd')filtered=T.filter(function(t){return t.type.toLowerCase().includes('invoice')&&inR(t.date,y2)});
+    else if(ak==='pay-current')filtered=T.filter(function(t){return t.type.toLowerCase().includes('payment')&&inR(t.date,c2)});
+    else if(ak==='pay-ytd')filtered=T.filter(function(t){return t.type.toLowerCase().includes('payment')&&inR(t.date,y2)});
+    else if(ak==='credits')filtered=T.filter(function(t){return t.type.toLowerCase().includes('credit')});
+    else if(ak==='ar')filtered=T;
+    showTxnDrill('Transactions: '+ak,filtered);return}
+  if(key.indexOf('actlcust-')===0){var cust=decodeURIComponent(key.replace('actlcust-',''));showTxnDrill('Customer: '+cust,T.filter(function(t){return t.customer===cust}));return}
+  if(key.indexOf('actltype-')===0){var type=decodeURIComponent(key.replace('actltype-',''));showTxnDrill('Type: '+type,T.filter(function(t){return t.type===type}));return}
+  if(key.indexOf('actlcred-')===0){var cust=decodeURIComponent(key.replace('actlcred-',''));showTxnDrill('Credits: '+cust,T.filter(function(t){return t.customer===cust&&t.type.toLowerCase().includes('credit')}));return}
+  if(key.indexOf('araging-')===0){var name=decodeURIComponent(key.replace('araging-',''));var r=AR.find(function(a){return a.name===name});if(r){document.getElementById('drillT').textContent='AR: '+name;document.getElementById('drillB').innerHTML='<div class="detail-grid">'+dI('Current',$(r.current))+dI('1-30 Days',$(r.d1_30))+dI('31-60 Days',$(r.d31_60))+dI('61-90 Days',$(r.d61_90))+dI('91+ Days',$(r.d91))+dI('Total',$(r.total))+'</div>';document.getElementById('drillMo').classList.add('open')}return}
 }
 
 // ═══ EVENTS ═══
 document.addEventListener('click',function(e){
-  var tab=e.target.closest('.tab');if(tab){curTab=tab.dataset.tab;document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.tab===curTab)});['execCnt','activityCnt','pocCnt','implCnt','renewalsCnt'].forEach(function(id){document.getElementById(id).classList.toggle('off',id!==curTab+'Cnt')});return}
+  var tab=e.target.closest('.tab');if(tab){curTab=tab.dataset.tab;document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.tab===curTab)});['execCnt','activityCnt','pocCnt','implCnt','renewalsCnt','actualsCnt'].forEach(function(id){document.getElementById(id).classList.toggle('off',id!==curTab+'Cnt')});return}
   var dr=e.target.closest('[data-drill]');if(dr){handleDrill(dr.dataset.drill);return}
   var sf=e.target.closest('[data-sf]');if(sf){sF=sf.dataset.sf;rAct();return}
   var rf=e.target.closest('[data-rf]');if(rf){rF=rf.dataset.rf;rRen();return}
