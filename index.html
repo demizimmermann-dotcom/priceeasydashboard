@@ -222,9 +222,12 @@ function pTXL(buf){var wb=XLSX.read(buf,{type:'array',cellDates:true});
   if(rows.length>0&&!rows[0]['Customer']&&!rows[0]['customer']&&!rows[0]['Date']&&!rows[0]['date']){
     console.log('Headers not found in row 0, trying header:1');
     var rawRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-    // Find header row (first row with 'Customer' or 'Date' in it)
-    var hdrIdx=-1;for(var ri=0;ri<Math.min(rawRows.length,10);ri++){var rStr=rawRows[ri].join(' ').toLowerCase();if(rStr.includes('customer')||rStr.includes('date')){hdrIdx=ri;break}}
-    if(hdrIdx>=0){var hdrs=rawRows[hdrIdx].map(function(h){return String(h||'').trim()});console.log('Found headers at row',hdrIdx,':',hdrs);
+    // Find header row: must have at least 4 non-empty cells AND contain 'Date' or 'Amount'
+    var hdrIdx=-1;for(var ri=0;ri<Math.min(rawRows.length,15);ri++){
+      var nonEmpty=rawRows[ri].filter(function(c){return String(c||'').trim()!==''}).length;
+      var rStr=rawRows[ri].join('|').toLowerCase();
+      if(nonEmpty>=4&&(rStr.includes('date')||rStr.includes('amount')||rStr.includes('transaction type'))){hdrIdx=ri;break}}
+    if(hdrIdx>=0){var hdrs=rawRows[hdrIdx].map(function(h){return String(h||'').trim()});console.log('Found txn headers at row',hdrIdx,':',hdrs);
       rows=[];for(var ri=hdrIdx+1;ri<rawRows.length;ri++){var o={};hdrs.forEach(function(h,i){o[h]=rawRows[ri][i]!==undefined?rawRows[ri][i]:''});rows.push(o)}
       console.log('Re-parsed:',rows.length,'rows',rows.length>0?Object.keys(rows[0]):'')}}
   T=rows.map(function(r){
@@ -239,7 +242,10 @@ function pTXL(buf){var wb=XLSX.read(buf,{type:'array',cellDates:true});
   if(arSheet){var arRows=XLSX.utils.sheet_to_json(arSheet,{defval:'',raw:false});
     if(arRows.length>0&&!arRows[0]['Customer Name']&&!arRows[0]['Current']){
       var arRaw=XLSX.utils.sheet_to_json(arSheet,{header:1,defval:''});
-      var ahi=-1;for(var ri=0;ri<Math.min(arRaw.length,10);ri++){var rs=arRaw[ri].join(' ').toLowerCase();if(rs.includes('customer')&&rs.includes('current')){ahi=ri;break}}
+      var ahi=-1;for(var ri=0;ri<Math.min(arRaw.length,15);ri++){
+        var nonEmpty=arRaw[ri].filter(function(c){return String(c||'').trim()!==''}).length;
+        var rs=arRaw[ri].join('|').toLowerCase();
+        if(nonEmpty>=3&&rs.includes('current')&&(rs.includes('customer')||rs.includes('total'))){ahi=ri;break}}
       if(ahi>=0){var ah=arRaw[ahi].map(function(h){return String(h||'').trim()});console.log('AR headers:',ah);arRows=[];for(var ri=ahi+1;ri<arRaw.length;ri++){var o={};ah.forEach(function(h,i){o[h]=arRaw[ri][i]!==undefined?arRaw[ri][i]:''});arRows.push(o)}}}
     AR=arRows.map(function(r){return{name:(r['Customer Name']||r['Customer']||r['Name']||'').trim(),current:parseFloat(r['Current'])||0,d1_30:parseFloat(r['1 - 30']||r['1-30']||r['1 to 30'])||0,d31_60:parseFloat(r['31 - 60']||r['31-60']||r['31 to 60'])||0,d61_90:parseFloat(r['61 - 90']||r['61-90']||r['61 to 90'])||0,d91:parseFloat(r['91 And Over']||r['91 and Over']||r['91+']||r['91 and over'])||0,total:parseFloat(r['Total']||r['TOTAL'])||0}}).filter(function(r){return r.name&&r.total!==0});
     console.log('AR parsed:',AR.length)}
@@ -249,8 +255,11 @@ function pTXL(buf){var wb=XLSX.read(buf,{type:'array',cellDates:true});
   if(spSheet){var spRows=XLSX.utils.sheet_to_json(spSheet,{defval:'',raw:false});
     if(spRows.length>0&&!spRows[0]['Product/Service']&&!spRows[0]['Product']&&!spRows[0]['Quantity']){
       var spRaw=XLSX.utils.sheet_to_json(spSheet,{header:1,defval:''});
-      var shi=-1;for(var ri=0;ri<Math.min(spRaw.length,10);ri++){var rs=spRaw[ri].join(' ').toLowerCase();if(rs.includes('product')||rs.includes('quantity')){shi=ri;break}}
-      if(shi>=0){var sh=spRaw[shi].map(function(h){return String(h||'').trim()});console.log('Sales headers:',sh);spRows=[];for(var ri=shi+1;ri<spRaw.length;ri++){var o={};sh.forEach(function(h,i){o[h]=spRaw[ri][i]!==undefined?spRaw[ri][i]:''});spRows.push(o)}}}
+      var shi=-1;for(var ri=0;ri<Math.min(spRaw.length,15);ri++){
+        var nonEmpty=spRaw[ri].filter(function(c){return String(c||'').trim()!==''}).length;
+        var rs=spRaw[ri].join('|').toLowerCase();
+        if(nonEmpty>=3&&(rs.includes('quantity')||rs.includes('amount')||rs.includes('product')&&!rs.includes('summary'))){shi=ri;break}}
+      if(shi>=0){var sh=spRaw[shi].map(function(h){return String(h||'').trim()});console.log('Sales headers at row',shi,':',sh);spRows=[];for(var ri=shi+1;ri<spRaw.length;ri++){var o={};sh.forEach(function(h,i){o[h]=spRaw[ri][i]!==undefined?spRaw[ri][i]:''});spRows.push(o)}}}
     SP=spRows.map(function(r){return{product:(r['Product/Service']||r['Product']||r['Service']||r['Product/service']||'').trim(),qty:parseFloat(r['Quantity']||r['Qty'])||0,amount:parseFloat(r['Amount'])||0,pctSales:parseFloat(r['% of Sales']||r['% Sales']||r['Pct of Sales'])||0,avgPrice:parseFloat(r['Avg Price']||r['Average Price']||r['Avg price'])||0,cogs:parseFloat(r['COGS'])||0,grossMargin:parseFloat(r['Gross Margin']||r['Gross margin'])||0,grossMarginPct:parseFloat(r['Gross Margin %']||r['Margin %']||r['Gross Margin%']||r['Gross margin %'])||0}}).filter(function(r){return r.product});
     console.log('Sales parsed:',SP.length)}
   // Sheet 4: Client ID Mapping (customer contact + open balance)
@@ -347,16 +356,43 @@ function rExec(){
   qh+='<div style="flex:1;text-align:center;padding:6px;background:var(--card-a);border-radius:6px;font-size:9px;color:var(--t3)"><span style="display:block;font-size:14px;font-weight:700;font-family:Fraunces,serif;color:var(--t1)">'+aPocs.length+'</span>POCs</div>';
   qh+='<div style="flex:1;text-align:center;padding:6px;background:var(--card-a);border-radius:6px;font-size:9px;color:var(--t3)"><span style="display:block;font-size:14px;font-weight:700;font-family:Fraunces,serif;color:var(--t1)">'+pP+'%</span>Pub</div>';
   qh+='</div></div>';
-  // Revenue quadrant
-  var cCol=tS.collectionRate>=80?'var(--green)':tS.collectionRate>=60?'var(--amber)':'var(--red)';
+  // CSM action counts
+  var csmActions={};
+  // Count actions per CSM: renewals <=60d, stuck impl, not publishing
+  up.filter(function(d){return du(d.endDate)<=60}).forEach(function(d){var cs=gc(d);if(cs&&cs.csm){csmActions[cs.csm]=(csmActions[cs.csm]||0)+1}});
+  C.filter(function(x){return x.iProg&&x.init&&Math.round((new Date()-x.init)/864e5)>45}).forEach(function(x){if(x.csm){csmActions[x.csm]=(csmActions[x.csm]||0)+1}});
+  C.filter(function(x){return isPubRisk(x.pub)}).forEach(function(x){if(x.csm){csmActions[x.csm]=(csmActions[x.csm]||0)+1}});
+  var csmActSorted=Object.keys(csmActions).sort(function(a,b){return csmActions[b]-csmActions[a]});
+  var csmActHtml='';
+  if(csmActSorted.length){csmActHtml='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:16px;margin-bottom:14px;grid-column:1/-1"><div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:10px">🎯 ACTION ITEMS BY CSM</div><div style="display:flex;gap:8px;flex-wrap:wrap">';csmActSorted.forEach(function(csm){var cnt=csmActions[csm];var col=cnt>=10?'var(--red)':cnt>=5?'var(--amber)':'var(--green)';csmActHtml+='<div style="background:var(--card-a);border-radius:8px;padding:8px 14px;text-align:center;min-width:80px"><div style="font-family:Fraunces,serif;font-size:20px;font-weight:700;color:'+col+'">'+cnt+'</div><div style="font-size:9px;color:var(--t3)">'+csm+'</div></div>'});csmActHtml+='</div></div>'}
+  // Revenue quadrant - Collections = sum of Payment transaction types, AR = from AR Aging sheet
+  var totalPayments=0,totalInvoiced=0;
+  T.forEach(function(t){var tt=(t.type||'').toLowerCase();if(tt.includes('payment'))totalPayments+=Math.abs(t.amount);if(tt.includes('invoice'))totalInvoiced+=t.amount});
+  var collRate=totalInvoiced>0?Math.round(totalPayments/totalInvoiced*100):0;
+  var cCol=collRate>=80?'var(--green)':collRate>=60?'var(--amber)':'var(--red)';
+  // AR from AR Aging sheet buckets
+  var arCur=0,ar30=0,ar60=0,ar90=0,ar91=0;
+  AR.forEach(function(r){arCur+=r.current;ar30+=r.d1_30;ar60+=r.d31_60;ar90+=r.d61_90;ar91+=r.d91});
+  var arTotal=arCur+ar30+ar60+ar90+ar91;
   qh+='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:20px;cursor:pointer" data-tab-link="actuals">';
   qh+='<div style="font-size:12px;font-weight:700;color:'+cCol+';margin-bottom:14px">💰 REVENUE</div>';
-  qh+='<div style="font-family:Fraunces,serif;font-size:36px;font-weight:700;color:var(--amber)">'+$(tS.invoiced)+'</div>';
-  qh+='<div style="font-size:11px;color:var(--t2);margin-top:6px">Collection: '+tS.collectionRate+'% &middot; '+$(tS.paid)+' received</div>';
-  qh+='<div style="font-size:11px;color:var(--t2)">Open AR: '+$(oB)+'</div>';
-  qh+='<div style="width:100%;height:8px;background:var(--card-a);border-radius:4px;margin-top:8px"><div style="height:100%;border-radius:4px;width:'+Math.min(tS.collectionRate,100)+'%;background:'+cCol+'"></div></div>';
+  qh+='<div style="font-family:Fraunces,serif;font-size:36px;font-weight:700;color:var(--amber)">'+$(totalInvoiced)+'<span style="font-size:14px;color:var(--t2)"> invoiced</span></div>';
+  qh+='<div style="font-size:11px;color:var(--t2);margin-top:6px">Collected: '+$(totalPayments)+' ('+collRate+'%)</div>';
+  qh+='<div style="width:100%;height:8px;background:var(--card-a);border-radius:4px;margin-top:6px"><div style="height:100%;border-radius:4px;width:'+Math.min(collRate,100)+'%;background:'+cCol+'"></div></div>';
+  if(AR.length){
+    qh+='<div style="font-size:10px;color:var(--t3);margin-top:10px;font-weight:600">OPEN AR: '+$(arTotal)+'</div>';
+    qh+='<div style="display:flex;gap:3px;margin-top:6px">';
+    qh+='<div style="flex:1;text-align:center;padding:4px;background:var(--card-a);border-radius:4px"><div style="font-size:11px;font-weight:700;color:var(--green)">'+$(arCur)+'</div><div style="font-size:8px;color:var(--t3)">Current</div></div>';
+    qh+='<div style="flex:1;text-align:center;padding:4px;background:var(--card-a);border-radius:4px"><div style="font-size:11px;font-weight:700;color:var(--cyan)">'+$(ar30)+'</div><div style="font-size:8px;color:var(--t3)">1-30</div></div>';
+    qh+='<div style="flex:1;text-align:center;padding:4px;background:var(--card-a);border-radius:4px"><div style="font-size:11px;font-weight:700;color:var(--amber)">'+$(ar60)+'</div><div style="font-size:8px;color:var(--t3)">31-60</div></div>';
+    qh+='<div style="flex:1;text-align:center;padding:4px;background:var(--card-a);border-radius:4px"><div style="font-size:11px;font-weight:700;color:var(--orange)">'+$(ar90)+'</div><div style="font-size:8px;color:var(--t3)">61-90</div></div>';
+    qh+='<div style="flex:1;text-align:center;padding:4px;background:var(--card-a);border-radius:4px"><div style="font-size:11px;font-weight:700;color:var(--red)">'+$(ar91)+'</div><div style="font-size:8px;color:var(--t3)">91+</div></div>';
+    qh+='</div>';
+  } else {
+    qh+='<div style="font-size:11px;color:var(--t2)">Open AR: '+$(oB)+'</div>';
+  }
   qh+='</div>';
-  document.getElementById('execQuad').innerHTML=qh;
+  document.getElementById('execQuad').innerHTML=csmActHtml+qh;
 }
 
 function rAction(){
