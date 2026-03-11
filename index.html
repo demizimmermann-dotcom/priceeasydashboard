@@ -197,8 +197,8 @@ select.fb{appearance:none;padding-right:20px;background-image:url("data:image/sv
 <div class="mo" id="drillMo"><div class="ml"><div class="mh"><h3 id="drillT">Detail</h3><div style="display:flex;gap:8px;align-items:center"><button class="export-btn" id="exportBtn" style="display:none">📥 Export CSV</button><button class="mc" id="drillX">✕</button></div></div><div class="mb" id="drillB"></div></div></div>
 <script>
 // ═══ CONFIG & AUTH ═══
-var msalConfig={auth:{clientId:"b3240d43-7574-4b22-8d96-f1704f7a1b76",authority:"https://login.microsoftonline.com/c4d594d9-da13-487e-90a5-740ec76c61be",redirectUri:"https://demizimmermann-dotcom.github.io/priceeasydashboard/"},cache:{cacheLocation:"sessionStorage",storeAuthStateInCookie:false}};
-var loginRequest={scopes:["https://priceeasy1.sharepoint.com/.default"]};
+var msalConfig={auth:{clientId:"f86309ca-1b8c-410c-bc3d-af8ee687cdfa",authority:"https://login.microsoftonline.com/c4d594d9-da13-487e-90a5-740ec76c61be",redirectUri:"https://demizimmermann-dotcom.github.io/priceeasydashboard/"},cache:{cacheLocation:"sessionStorage",storeAuthStateInCookie:false}};
+var loginRequest={scopes:["https://priceeasy1.sharepoint.com/AllSites.Read","https://priceeasy1.sharepoint.com/MyFiles.Read"]};
 var msalInstance=new msal.PublicClientApplication(msalConfig);var accessToken=null;
 var SITE='https://priceeasy1.sharepoint.com/sites/AccountingFinance',GUID='47f480c2-eb0f-4408-b62a-b0b3d85d88e4';
 var CUST_KNOWN_PATH='/Customer Master/Customer Master and Tracker (All Teams).xlsx',CUST_FILE_GUID='6b85d56a-1ad8-4dac-a1b4-6466ca6a4f80';
@@ -462,6 +462,8 @@ function rAction(){
   function teamMatch(d){if(tf==='all')return true;var cs=gc(d);return cs&&(cs.ae===tf||cs.csm===tf)}
   function teamMatchC(c){return tf==='all'||(c.ae===tf||c.csm===tf)}
   var h='';
+  console.log('rAction: C.length='+C.length+', AR.length='+AR.length+', tf='+tf);
+  if(C.length){var pubVals={};C.forEach(function(c){pubVals[c.pub||'EMPTY']=(pubVals[c.pub||'EMPTY']||0)+1});console.log('Pub values:',pubVals);var iprogCount=C.filter(function(c){return c.iProg}).length;console.log('iProg:',iprogCount)}
   // CSM Action Counts at top
   var csmAct={};
   D.filter(function(d){return d.endDate&&du(d.endDate)>=0&&du(d.endDate)<=60}).forEach(function(d){var cs=gc(d);if(cs&&cs.csm){csmAct[cs.csm]=(csmAct[cs.csm]||0)+1}});
@@ -489,7 +491,8 @@ function rAction(){
     h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px;cursor:pointer" data-id="'+d.id+'"><div style="width:8px;height:8px;border-radius:50%;background:var(--'+(x<=7?'red':x<=30?'amber':'green')+');flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+d.client+'</div><div style="font-size:10px;color:var(--t3)">'+x+'d &middot; '+d.pocTerm+' &middot; '+$(d.value)+' ARR</div></div>'});
   if(!pocs.length)h+='<div style="text-align:center;padding:20px;color:var(--t3);font-size:12px">No POCs expiring</div>';h+='</div>';
   // 3. Stuck implementations
-  var stuck=C.filter(function(c){if(!c.iProg||!teamMatchC(c))return false;var days=c.init?Math.round((new Date()-c.init)/864e5):0;return days>45||c.tickets>3}).sort(function(a,b){var ad=a.init?(new Date()-a.init):0,bd=b.init?(new Date()-b.init):0;return bd-ad});
+  var stuck=C.filter(function(c){if(!c.iProg||!teamMatchC(c))return false;var days=c.init?Math.round((new Date()-c.init)/864e5):0;return days>30||c.tickets>2}).sort(function(a,b){var ad=a.init?(new Date()-a.init):0,bd=b.init?(new Date()-b.init):0;return bd-ad});
+  console.log('Stuck (>30d or >2 tickets):',stuck.length);
   h+='<div style="margin-bottom:18px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin-bottom:10px">🟡 Stuck Implementations <span style="background:var(--card-a);padding:2px 8px;border-radius:10px;font-size:10px;color:var(--t1)">'+stuck.length+'</span></div>';
   stuck.slice(0,8).forEach(function(x){var days=x.init?Math.round((new Date()-x.init)/864e5):0;
     h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px;cursor:pointer" data-cid="'+x.custId+'"><div style="width:8px;height:8px;border-radius:50%;background:var(--'+(days>60?'red':'amber')+');flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+x.name+'</div><div style="font-size:10px;color:var(--t3)">'+days+'d &middot; '+(x.stage||'?')+' &middot; '+x.tickets+' tickets</div></div>'});
@@ -500,8 +503,9 @@ function rAction(){
   notPub.slice(0,8).forEach(function(x){
     h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px;cursor:pointer" data-cid="'+x.custId+'"><div style="width:8px;height:8px;border-radius:50%;background:var(--'+(x.mrrJan>5000?'red':'amber')+');flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+x.name+'</div><div style="font-size:10px;color:var(--t3)">'+$(x.mrrJan)+' MRR &middot; '+(x.pub||'Unknown')+'</div></div>'});
   if(!notPub.length)h+='<div style="text-align:center;padding:20px;color:var(--t3);font-size:12px">All clients publishing</div>';h+='</div>';
-  // 5. Collections - from AR Aging data
+  // 5. Collections - from AR Aging data, filtered by team via CS Tracker name match
   var hiBal=AR.filter(function(r){return r.total>1000}).sort(function(a,b){return b.total-a.total});
+  if(tf!=='all'){hiBal=hiBal.filter(function(r){var nrn=normName(r.name);var cs=C.find(function(c){return normName(c.name)===nrn});return cs&&(cs.ae===tf||cs.csm===tf)})}
   h+='<div style="margin-bottom:18px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin-bottom:10px">💰 Collections Needed <span style="background:var(--card-a);padding:2px 8px;border-radius:10px;font-size:10px;color:var(--t1)">'+hiBal.length+'</span></div>';
   hiBal.slice(0,10).forEach(function(r){
     var overdue=r.d31_60+r.d61_90+r.d91;var col=overdue>5000?'red':overdue>0?'amber':'green';
