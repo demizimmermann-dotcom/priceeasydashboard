@@ -247,7 +247,7 @@ function pTXL(buf){var wb=XLSX.read(buf,{type:'array',cellDates:true});
         var rs=arRaw[ri].join('|').toLowerCase();
         if(nonEmpty>=3&&rs.includes('current')&&(rs.includes('customer')||rs.includes('total'))){ahi=ri;break}}
       if(ahi>=0){var ah=arRaw[ahi].map(function(h){return String(h||'').trim()});console.log('AR headers:',ah);arRows=[];for(var ri=ahi+1;ri<arRaw.length;ri++){var o={};ah.forEach(function(h,i){o[h]=arRaw[ri][i]!==undefined?arRaw[ri][i]:''});arRows.push(o)}}}
-    AR=arRows.map(function(r){return{name:(r['Customer Name']||r['Customer']||r['Name']||'').trim(),current:parseFloat(r['Current'])||0,d1_30:parseFloat(r['1 - 30']||r['1-30']||r['1 to 30'])||0,d31_60:parseFloat(r['31 - 60']||r['31-60']||r['31 to 60'])||0,d61_90:parseFloat(r['61 - 90']||r['61-90']||r['61 to 90'])||0,d91:parseFloat(r['91 And Over']||r['91 and Over']||r['91+']||r['91 and over'])||0,total:parseFloat(r['Total']||r['TOTAL'])||0}}).filter(function(r){return r.name&&r.total!==0});
+    AR=arRows.map(function(r){return{name:(r['Customer Name']||r['Customer']||r['Name']||'').trim(),current:parseFloat(r['Current'])||0,d1_30:parseFloat(r['1 - 30']||r['1-30']||r['1 to 30'])||0,d31_60:parseFloat(r['31 - 60']||r['31-60']||r['31 to 60'])||0,d61_90:parseFloat(r['61 - 90']||r['61-90']||r['61 to 90'])||0,d91:parseFloat(r['91 And Over']||r['91 and Over']||r['91+']||r['91 and over'])||0,total:parseFloat(r['Total']||r['TOTAL'])||0}}).filter(function(r){return r.name&&r.total!==0&&r.name.toLowerCase()!=='total'&&r.name.toLowerCase()!=='totals'&&!r.name.toLowerCase().startsWith('total ')});
     console.log('AR parsed:',AR.length)}
   // Sheet 3: Sales by Product/Service
   var spSheet=wb.Sheets['Sales by Product']||wb.Sheets['Sales by Product Service']||wb.Sheets['Sales by Product/Service']||null;
@@ -311,8 +311,20 @@ function barV(l,c,a,mx,col,dk){return'<div class="br"'+(dk?' data-drill="'+dk+'"
 function renderAll(){var n=new Date();document.getElementById('sub').textContent=D.length+' scopes · '+(C.length?C.length+' customers · ':'')+(T.length?T.length+' txns · ':'')+(MN[n.getMonth()])+' '+n.getFullYear();try{rExec()}catch(e){console.error('Exec:',e)}try{rAction()}catch(e){console.error('Action:',e)}try{rAEF();rAct()}catch(e){console.error('Act:',e)}try{rPoc()}catch(e){console.error('POC:',e)}try{rImpl()}catch(e){console.error('Impl:',e)}try{rRen()}catch(e){console.error('Ren:',e)}try{rActuals()}catch(e){console.error('Actuals:',e)}}
 
 // ═══ TAB 0: EXECUTIVE SUMMARY ═══
+// Find the most recent month that has scope data
+function latestMonth(){
+  var months={};D.forEach(function(d){if(d.effectiveDate){var k=d.effectiveDate.getFullYear()+'-'+d.effectiveDate.getMonth();months[k]=(months[k]||0)+1}});
+  var sorted=Object.keys(months).sort().reverse();
+  if(!sorted.length)return{cur:MR(0),prior:MR(-1),curLabel:'This Mo',priorLabel:'Prior Mo'};
+  var parts=sorted[0].split('-');var cY=parseInt(parts[0]),cM=parseInt(parts[1]);
+  var cur={s:new Date(cY,cM,1),e:new Date(cY,cM+1,0,23,59,59)};
+  var pParts=sorted.length>1?sorted[1].split('-'):[cY+'',''+(cM-1)];var pY=parseInt(pParts[0]),pM=parseInt(pParts[1]);
+  var prior={s:new Date(pY,pM,1),e:new Date(pY,pM+1,0,23,59,59)};
+  var MNF=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return{cur:cur,prior:prior,curLabel:MNF[cM]+' '+cY,priorLabel:MNF[pM]+' '+pY};
+}
 function rExec(){
-  var c=MR(0),p=MR(-1),y=YTD(),all=aF(D);
+  var lm=latestMonth(),c=lm.cur,p=lm.prior,y=YTD(),all=aF(D);
   var ci=all.filter(function(d){return inR(d.effectiveDate,c)}),pi=all.filter(function(d){return inR(d.effectiveDate,p)}),yi=all.filter(function(d){return inR(d.effectiveDate,y)});
   var pocs=D.filter(function(d){return d.pilot==='Yes'}),aPocs=pocs.filter(function(d){return d.pocStatus!=='Expired'});
   var pcIds={};pocs.forEach(function(d){if(d.clientId)pcIds[d.clientId.toLowerCase()]=true});
@@ -332,8 +344,8 @@ function rExec(){
   // Growth quadrant
   qh+='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:20px;cursor:pointer" data-tab-link="activity">';
   qh+='<div style="font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:14px">📈 GROWTH '+trend(ci.length,pi.length)+'</div>';
-  qh+='<div style="font-family:Fraunces,serif;font-size:36px;font-weight:700;color:var(--cyan)">'+ci.length+'<span style="font-size:14px;color:var(--t2)"> scopes this mo</span></div>';
-  qh+='<div style="font-size:11px;color:var(--t2);margin-top:6px">'+$(sv(ci))+' ARR added</div>';
+  qh+='<div style="font-family:Fraunces,serif;font-size:36px;font-weight:700;color:var(--cyan)">'+ci.length+'<span style="font-size:14px;color:var(--t2)"> scopes ('+lm.curLabel+')</span></div>';
+  qh+='<div style="font-size:11px;color:var(--t2);margin-top:6px">'+$(sv(ci))+' ARR &middot; Prior ('+lm.priorLabel+'): '+pi.length+' / '+$(sv(pi))+'</div>';
   qh+='<div style="font-size:11px;color:var(--t2)">'+yi.length+' YTD total &middot; '+$(sv(yi))+' ARR</div>';
   qh+='</div>';
   // Retention quadrant
@@ -392,7 +404,7 @@ function rExec(){
     qh+='<div style="font-size:11px;color:var(--t2)">Open AR: '+$(oB)+'</div>';
   }
   qh+='</div>';
-  document.getElementById('execQuad').innerHTML=csmActHtml+qh;
+  document.getElementById('execQuad').innerHTML=qh;
 }
 
 function rAction(){
@@ -403,6 +415,19 @@ function rAction(){
   function teamMatch(d){if(tf==='all')return true;var cs=gc(d);return cs&&(cs.ae===tf||cs.csm===tf)}
   function teamMatchC(c){return tf==='all'||(c.ae===tf||c.csm===tf)}
   var h='';
+  // CSM Action Counts at top
+  var csmAct={};
+  D.filter(function(d){return d.endDate&&du(d.endDate)>=0&&du(d.endDate)<=60}).forEach(function(d){var cs=gc(d);if(cs&&cs.csm){csmAct[cs.csm]=(csmAct[cs.csm]||0)+1}});
+  C.filter(function(x){return x.iProg&&x.init&&Math.round((new Date()-x.init)/864e5)>45}).forEach(function(x){if(x.csm){csmAct[x.csm]=(csmAct[x.csm]||0)+1}});
+  C.filter(function(x){return isPubRisk(x.pub)}).forEach(function(x){if(x.csm){csmAct[x.csm]=(csmAct[x.csm]||0)+1}});
+  AR.filter(function(r){return(r.d31_60+r.d61_90+r.d91)>1000}).forEach(function(r){
+    var cs=C.find(function(c){return normName(c.name)===normName(r.name)});if(cs&&cs.csm){csmAct[cs.csm]=(csmAct[cs.csm]||0)+1}});
+  var csmActSrt=Object.keys(csmAct).sort(function(a,b){return csmAct[b]-csmAct[a]});
+  if(csmActSrt.length){
+    h+='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:16px;margin-bottom:18px"><div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:10px">🎯 ACTION ITEMS BY CSM</div><div style="display:flex;gap:8px;flex-wrap:wrap">';
+    csmActSrt.forEach(function(csm){var cnt=csmAct[csm];var col=cnt>=10?'var(--red)':cnt>=5?'var(--amber)':'var(--green)';
+      h+='<div style="background:var(--card-a);border-radius:8px;padding:8px 14px;text-align:center;min-width:80px;cursor:pointer" data-drill="csm-'+csm+'"><div style="font-family:Fraunces,serif;font-size:20px;font-weight:700;color:'+col+'">'+cnt+'</div><div style="font-size:9px;color:var(--t3)">'+csm+'</div></div>'});
+    h+='</div></div>'}
   // 1. Renewals
   var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0&&du(d.endDate)<=60&&teamMatch(d)}).sort(function(a,b){return du(a.endDate)-du(b.endDate)});
   h+='<div style="margin-bottom:18px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin-bottom:10px">🔴 Renewals Needing Action <span style="background:var(--card-a);padding:2px 8px;border-radius:10px;font-size:10px;color:var(--t1)">'+up.length+'</span></div>';
@@ -428,11 +453,12 @@ function rAction(){
   notPub.slice(0,8).forEach(function(x){
     h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px;cursor:pointer" data-cid="'+x.custId+'"><div style="width:8px;height:8px;border-radius:50%;background:var(--'+(x.mrrJan>5000?'red':'amber')+');flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+x.name+'</div><div style="font-size:10px;color:var(--t3)">'+$(x.mrrJan)+' MRR &middot; '+(x.pub||'Unknown')+'</div></div>'});
   if(!notPub.length)h+='<div style="text-align:center;padding:20px;color:var(--t3);font-size:12px">All clients publishing</div>';h+='</div>';
-  // 5. Collections
-  var hiBal=CL2.filter(function(c){return c.openBal>1000}).sort(function(a,b){return b.openBal-a.openBal});
+  // 5. Collections - from AR Aging data
+  var hiBal=AR.filter(function(r){return r.total>1000}).sort(function(a,b){return b.total-a.total});
   h+='<div style="margin-bottom:18px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin-bottom:10px">💰 Collections Needed <span style="background:var(--card-a);padding:2px 8px;border-radius:10px;font-size:10px;color:var(--t1)">'+hiBal.length+'</span></div>';
-  hiBal.slice(0,8).forEach(function(x){
-    h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px"><div style="width:8px;height:8px;border-radius:50%;background:var(--'+(x.openBal>10000?'red':x.openBal>5000?'amber':'green')+');flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+(x.company||x.name)+'</div><div style="font-size:10px;color:var(--t3)">'+$(x.openBal)+(x.email?' &middot; '+x.email:'')+'</div></div>'});
+  hiBal.slice(0,10).forEach(function(r){
+    var overdue=r.d31_60+r.d61_90+r.d91;var col=overdue>5000?'red':overdue>0?'amber':'green';
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px;cursor:pointer" data-drill="araging-'+encodeURIComponent(r.name)+'"><div style="width:8px;height:8px;border-radius:50%;background:var(--'+col+');flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+r.name+'</div><div style="font-size:10px;color:var(--t3)">'+$(r.total)+' total'+(overdue>0?' &middot; <span style="color:var(--red)">'+$(overdue)+' overdue</span>':'')+'</div></div>'});
   if(!hiBal.length)h+='<div style="text-align:center;padding:20px;color:var(--t3);font-size:12px">No collections needed</div>';h+='</div>';
   // 6. Pending scopes
   var pend=D.filter(function(d){return(d.status==='Draft'||d.status==='Pending Review')&&teamMatch(d)}).sort(function(a,b){return(b.created||0)-(a.created||0)});
@@ -445,12 +471,12 @@ function rAction(){
 
 function rAEF(){if(!C.length){document.getElementById('aeCSMFilters').innerHTML='';return}var aes=['all'],csms=['all'];C.forEach(function(c){if(c.ae&&aes.indexOf(c.ae)===-1)aes.push(c.ae);if(c.csm&&csms.indexOf(c.csm)===-1)csms.push(c.csm)});aes.sort();csms.sort();var h='<span style="font-size:10px;color:var(--t3);font-weight:600">FILTER:</span> <select class="fb" id="aeFilter">';aes.forEach(function(a){h+='<option value="'+a+'"'+(aeF===a?' selected':'')+'>'+(a==='all'?'All AEs':a)+'</option>'});h+='</select> <select class="fb" id="csmFilter">';csms.forEach(function(c){h+='<option value="'+c+'"'+(csmF===c?' selected':'')+'>'+(c==='all'?'All CSMs':c)+'</option>'});h+='</select>';document.getElementById('aeCSMFilters').innerHTML=h}
 function rAct(){
-  var c=MR(0),p=MR(-1),y=YTD(),n=new Date(),all=aF(D);
+  var lm=latestMonth(),c=lm.cur,p=lm.prior,y=YTD(),n=new Date(),all=aF(D);
   var ci=all.filter(function(d){return inR(d.effectiveDate,c)}),pi=all.filter(function(d){return inR(d.effectiveDate,p)}),yi=all.filter(function(d){return inR(d.effectiveDate,y)});
   var cv=0,pv=0,yv=0;ci.forEach(function(d){cv+=d.value});pi.forEach(function(d){pv+=d.value});yi.forEach(function(d){yv+=d.value});
   document.getElementById('actSummary').innerHTML=[
-    card('Current Month',ci.length,$(cv)+' ARR','cyan','act-current',trend(ci.length,pi.length)),
-    card('Prior Month',pi.length,$(pv)+' ARR','blue','act-prior'),
+    card(lm.curLabel,ci.length,$(cv)+' ARR','cyan','act-current',trend(ci.length,pi.length)),
+    card(lm.priorLabel,pi.length,$(pv)+' ARR','blue','act-prior'),
     card('YTD',yi.length,$(yv)+' ARR','green','act-ytd',trend(yi.length,0)),
     card('YTD ARR',$(yv),yi.length+' scopes','amber','act-ytd'),
     card('Avg ARR',$(yi.length?yv/yi.length:0),'Per scope YTD','rose','act-ytd')
