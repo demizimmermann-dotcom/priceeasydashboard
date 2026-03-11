@@ -95,7 +95,8 @@ tbody td{padding:8px 14px;font-size:11px;color:var(--t2)}tbody td:first-child{co
   <div class="banner"><span>⚙️</span><code id="status" class="ok">Connecting…</code><span id="custStatus"></span><span class="ts" id="timer" style="margin-left:auto"></span></div>
   <div class="hdr"><div><h1>Progress Scope Dashboard</h1><p id="sub">Loading…</p></div><div class="hdr-r"><button class="rbtn" id="refBtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>Refresh</button></div></div>
   <div class="tabs">
-    <div class="tab on" data-tab="exec">🏠 Executive Summary</div>
+    <div class="tab on" data-tab="exec">🏠 Scorecard</div>
+    <div class="tab" data-tab="action">🎯 Actions</div>
     <div class="tab" data-tab="activity">📊 Activity</div>
     <div class="tab" data-tab="poc">🧪 POC</div>
     <div class="tab" data-tab="impl">🔧 Implementations</div>
@@ -103,7 +104,8 @@ tbody td{padding:8px 14px;font-size:11px;color:var(--t2)}tbody td:first-child{co
     <div class="tab" data-tab="actuals">💰 Actuals</div>
   </div>
   <!-- EXEC SUMMARY -->
-  <div class="cnt" id="execCnt"><div class="row" id="execCards"></div><div class="chart-grid" id="execCharts"></div></div>
+  <div class="cnt" id="execCnt"><div id="execQuad" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px"></div></div>
+  <div class="cnt off" id="actionCnt"><div class="fg" id="actionFilter" style="margin-bottom:14px"></div><div id="actionLists"></div></div>
   <!-- ACTIVITY -->
   <div class="cnt off" id="activityCnt">
     <div class="fg" id="aeCSMFilters" style="margin-bottom:12px"></div>
@@ -278,32 +280,114 @@ function card(l,v,s,a,dr,trd){return'<div class="sc" data-a="'+a+'"'+(dr?' data-
 function bar(l,v,mx,col,dk){return'<div class="br"'+(dk?' data-drill="'+dk+'"':'')+' style="cursor:pointer"><div class="bl">'+l+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(v/mx*100,8)+'%">'+v+'</div></div></div>'}
 function barV(l,c,a,mx,col,dk){return'<div class="br"'+(dk?' data-drill="'+dk+'"':'')+' style="cursor:pointer"><div class="bl">'+l+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(c/mx*100,8)+'%">'+c+' · '+$(a)+'</div></div></div>'}
 // ═══ RENDER ALL ═══
-function renderAll(){var n=new Date();document.getElementById('sub').textContent=D.length+' scopes · '+(C.length?C.length+' customers · ':'')+(T.length?T.length+' txns · ':'')+(MN[n.getMonth()])+' '+n.getFullYear();try{rExec()}catch(e){console.error('Exec:',e)}try{rAEF();rAct()}catch(e){console.error('Act:',e)}try{rPoc()}catch(e){console.error('POC:',e)}try{rImpl()}catch(e){console.error('Impl:',e)}try{rRen()}catch(e){console.error('Ren:',e)}try{rActuals()}catch(e){console.error('Actuals:',e)}}
+function renderAll(){var n=new Date();document.getElementById('sub').textContent=D.length+' scopes · '+(C.length?C.length+' customers · ':'')+(T.length?T.length+' txns · ':'')+(MN[n.getMonth()])+' '+n.getFullYear();try{rExec()}catch(e){console.error('Exec:',e)}try{rAction()}catch(e){console.error('Action:',e)}try{rAEF();rAct()}catch(e){console.error('Act:',e)}try{rPoc()}catch(e){console.error('POC:',e)}try{rImpl()}catch(e){console.error('Impl:',e)}try{rRen()}catch(e){console.error('Ren:',e)}try{rActuals()}catch(e){console.error('Actuals:',e)}}
 
 // ═══ TAB 0: EXECUTIVE SUMMARY ═══
 function rExec(){
-  var c=MR(0),p=MR(-1),y=YTD(),n=new Date(),all=aF(D);
-  var ci=all.filter(function(d){return inR(d.effectiveDate,c)}),pi=all.filter(function(d){return inR(d.effectiveDate,p)});
-  var pocs=D.filter(function(d){return d.pilot==='Yes'}),activePocs=pocs.filter(function(d){return d.pocStatus==='Active'||d.pocStatus==='Expiring Soon'});
-  var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0&&du(d.endDate)<=30});
-  var implProg=C.filter(function(c){return c.iProg});
-  var riskARR=0;D.filter(function(d){return d.endDate&&du(d.endDate)>=0}).forEach(function(d){var cs=gc(d);if((cs&&(isPubRisk(cs.pub)))||(d.notes&&d.notes.toLowerCase().match(/churn|cancel|without notice/))||(cs&&cs.churn>=7))riskARR+=d.value});
-  document.getElementById('execCards').innerHTML=[
-    card('New Scopes (Mo)',ci.length,$(sv(ci))+' ARR','cyan','act-current',trend(ci.length,pi.length)),
-    card('Active POCs',activePocs.length,pocs.length+' total','orange','poc-active'),
-    card('In Implementation',implProg.length,'Clients in progress','green','impl-inprogress'),
-    card('Renewals ≤30d',up.length,$(sv(up))+' ARR','red','ren-0-30'),
-    card('Revenue at Risk',$(riskARR),'Churn flagged','rose','ren-risk-all'),
-    CL2.length?card('Open Balance',$(CL2.reduce(function(s,c){return s+c.openBal},0)),CL2.filter(function(c){return c.openBal>0}).length+' clients with balance','orange','cl2-openbal'):''
-  ].join('');
-  // Mini charts
-  var scopes=[...new Set(all.map(function(d){return d.scope}))];var sMx=1;var sData={};scopes.forEach(function(s){var cnt=all.filter(function(d){return d.scope===s&&inR(d.effectiveDate,y)}).length;sData[s]=cnt;if(cnt>sMx)sMx=cnt});
-  var pubMap={};C.forEach(function(c){var p=c.pub||'Unknown';pubMap[p]=(pubMap[p]||0)+1});var pMx=Math.max.apply(null,Object.values(pubMap).concat([1]));
-  var pubCols={high:'green',medium:'cyan',moderate:'cyan',low:'amber',not_publishing:'red',none:'red','':'red',unknown:'violet'};
-  document.getElementById('execCharts').innerHTML='<div class="cs"><h2>Scope Mix YTD</h2>'+scopes.sort(function(a,b){return sData[b]-sData[a]}).map(function(s,i){return bar(s,sData[s],sMx,CL[i%CL.length],'scope-'+s)}).join('')+'</div><div class="cs"><h2>Publishing Health</h2>'+Object.keys(pubMap).sort(function(a,b){return pubMap[b]-pubMap[a]}).map(function(p){return bar(p,pubMap[p],pMx,pubCols[p.toLowerCase()]||'violet','pub-'+p)}).join('')+'</div>';
+  var c=MR(0),p=MR(-1),y=YTD(),all=aF(D);
+  var ci=all.filter(function(d){return inR(d.effectiveDate,c)}),pi=all.filter(function(d){return inR(d.effectiveDate,p)}),yi=all.filter(function(d){return inR(d.effectiveDate,y)});
+  var pocs=D.filter(function(d){return d.pilot==='Yes'}),aPocs=pocs.filter(function(d){return d.pocStatus!=='Expired'});
+  var pcIds={};pocs.forEach(function(d){if(d.clientId)pcIds[d.clientId.toLowerCase()]=true});
+  var conv=D.filter(function(d){return d.pilot!=='Yes'&&d.clientId&&pcIds[d.clientId.toLowerCase()]});
+  var cR=pocs.length>0?Math.round(conv.length/pocs.length*100):0;
+  var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0}),r30=up.filter(function(d){return du(d.endDate)<=30});
+  var iP=C.filter(function(x){return x.iProg}),iD=C.filter(function(x){return x.iDone});
+  var aI=iD.length?Math.round(iD.reduce(function(s,x){return s+x.iDays},0)/iD.length):0;
+  var iC=aI<=30?'var(--green)':aI<=45?'var(--amber)':'var(--red)';
+  var pA=0;C.forEach(function(x){var pp=(x.pub||'').toLowerCase();if(pp.includes('high')||pp.includes('medium')||pp.includes('moderate'))pA++});
+  var pP=C.length?Math.round(pA/C.length*100):0;
+  var aRC=0,aRA=0;up.forEach(function(d){var cs=gc(d);if((cs&&isPubRisk(cs.pub))||(d.notes&&d.notes.toLowerCase().match(/churn|cancel|without notice/))||(cs&&cs.churn>=7)){aRC++;aRA+=d.value}});
+  var rR=C.length>0?Math.round((C.length-aRC)/C.length*100):100;
+  var tS=T.length?txnSummary(T):{invoiced:0,paid:0,collectionRate:0};
+  var oB=CL2.reduce(function(s,x){return s+x.openBal},0);
+  var qh='';
+  // Growth quadrant
+  qh+='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:20px;cursor:pointer" data-tab-link="activity">';
+  qh+='<div style="font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:14px">📈 GROWTH '+trend(ci.length,pi.length)+'</div>';
+  qh+='<div style="font-family:Fraunces,serif;font-size:36px;font-weight:700;color:var(--cyan)">'+ci.length+'<span style="font-size:14px;color:var(--t2)"> scopes this mo</span></div>';
+  qh+='<div style="font-size:11px;color:var(--t2);margin-top:6px">'+$(sv(ci))+' ARR added</div>';
+  qh+='<div style="font-size:11px;color:var(--t2)">'+yi.length+' YTD total &middot; '+$(sv(yi))+' ARR</div>';
+  qh+='</div>';
+  // Retention quadrant
+  var rCol=rR>=90?'var(--green)':rR>=75?'var(--amber)':'var(--red)';
+  qh+='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:20px;cursor:pointer" data-tab-link="renewals">';
+  qh+='<div style="font-size:12px;font-weight:700;color:'+rCol+';margin-bottom:14px">🛡️ RETENTION</div>';
+  qh+='<div style="font-family:Fraunces,serif;font-size:36px;font-weight:700;color:'+rCol+'">'+rR+'%</div>';
+  qh+='<div style="font-size:11px;color:var(--t2);margin-top:6px">'+aRC+' at risk &middot; '+$(aRA)+' ARR exposed</div>';
+  qh+='<div style="font-size:11px;color:var(--t2)">'+r30.length+' renewing in 30d &middot; '+$(sv(r30))+'</div>';
+  qh+='<div style="width:100%;height:8px;background:var(--card-a);border-radius:4px;margin-top:8px"><div style="height:100%;border-radius:4px;width:'+rR+'%;background:'+rCol+'"></div></div>';
+  qh+='</div>';
+  // Operations quadrant
+  qh+='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:20px;cursor:pointer" data-tab-link="impl">';
+  qh+='<div style="font-size:12px;font-weight:700;color:'+iC+';margin-bottom:14px">⚙️ OPERATIONS</div>';
+  qh+='<div style="font-family:Fraunces,serif;font-size:36px;font-weight:700;color:'+iC+'">'+aI+'d<span style="font-size:14px;color:var(--t2)"> avg impl</span></div>';
+  qh+='<div style="font-size:11px;color:var(--t2);margin-top:6px">Target: 30-45d &middot; '+(aI<=30?'✅ On target':aI<=45?'⚠️ Near limit':'🔴 Over')+'</div>';
+  qh+='<div style="font-size:11px;color:var(--t2)">POC conv: '+cR+'% &middot; Pub: '+pP+'% active</div>';
+  qh+='<div style="display:flex;gap:4px;margin-top:10px">';
+  qh+='<div style="flex:1;text-align:center;padding:6px;background:var(--card-a);border-radius:6px;font-size:9px;color:var(--t3)"><span style="display:block;font-size:14px;font-weight:700;font-family:Fraunces,serif;color:var(--t1)">'+iP.length+'</span>In Prog</div>';
+  qh+='<div style="flex:1;text-align:center;padding:6px;background:var(--card-a);border-radius:6px;font-size:9px;color:var(--t3)"><span style="display:block;font-size:14px;font-weight:700;font-family:Fraunces,serif;color:var(--t1)">'+aPocs.length+'</span>POCs</div>';
+  qh+='<div style="flex:1;text-align:center;padding:6px;background:var(--card-a);border-radius:6px;font-size:9px;color:var(--t3)"><span style="display:block;font-size:14px;font-weight:700;font-family:Fraunces,serif;color:var(--t1)">'+pP+'%</span>Pub</div>';
+  qh+='</div></div>';
+  // Revenue quadrant
+  var cCol=tS.collectionRate>=80?'var(--green)':tS.collectionRate>=60?'var(--amber)':'var(--red)';
+  qh+='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:20px;cursor:pointer" data-tab-link="actuals">';
+  qh+='<div style="font-size:12px;font-weight:700;color:'+cCol+';margin-bottom:14px">💰 REVENUE</div>';
+  qh+='<div style="font-family:Fraunces,serif;font-size:36px;font-weight:700;color:var(--amber)">'+$(tS.invoiced)+'</div>';
+  qh+='<div style="font-size:11px;color:var(--t2);margin-top:6px">Collection: '+tS.collectionRate+'% &middot; '+$(tS.paid)+' received</div>';
+  qh+='<div style="font-size:11px;color:var(--t2)">Open AR: '+$(oB)+'</div>';
+  qh+='<div style="width:100%;height:8px;background:var(--card-a);border-radius:4px;margin-top:8px"><div style="height:100%;border-radius:4px;width:'+Math.min(tS.collectionRate,100)+'%;background:'+cCol+'"></div></div>';
+  qh+='</div>';
+  document.getElementById('execQuad').innerHTML=qh;
 }
 
-// ═══ TAB 1: ACTIVITY ═══
+function rAction(){
+  var afHtml='<span style="font-size:10px;color:var(--t3);font-weight:600">VIEW AS:</span> <select class="fb" id="actionAEFilter"><option value="all">All Team</option>';
+  if(C.length){var nm={};C.forEach(function(c){if(c.ae)nm[c.ae]=1;if(c.csm)nm[c.csm]=1});Object.keys(nm).sort().forEach(function(n){afHtml+='<option value="'+n+'">'+n+'</option>'})}
+  afHtml+='</select>';document.getElementById('actionFilter').innerHTML=afHtml;
+  var tf=document.getElementById('actionAEFilter')?document.getElementById('actionAEFilter').value:'all';
+  function teamMatch(d){if(tf==='all')return true;var cs=gc(d);return cs&&(cs.ae===tf||cs.csm===tf)}
+  function teamMatchC(c){return tf==='all'||(c.ae===tf||c.csm===tf)}
+  var h='';
+  // 1. Renewals
+  var up=D.filter(function(d){return d.endDate&&du(d.endDate)>=0&&du(d.endDate)<=60&&teamMatch(d)}).sort(function(a,b){return du(a.endDate)-du(b.endDate)});
+  h+='<div style="margin-bottom:18px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin-bottom:10px">🔴 Renewals Needing Action <span style="background:var(--card-a);padding:2px 8px;border-radius:10px;font-size:10px;color:var(--t1)">'+up.length+'</span></div>';
+  up.slice(0,8).forEach(function(d){var x=du(d.endDate),cs=gc(d),cl2=getCL2(d.clientId,d.client),flags=[];
+    if(cs&&isPubRisk(cs.pub))flags.push('Not pub');if(cl2&&cl2.openBal>5000)flags.push('AR:'+$(cl2.openBal));if(cs&&cs.churn>=7)flags.push('Churn:'+cs.churn.toFixed(0));
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px;cursor:pointer" data-id="'+d.id+'"><div style="width:8px;height:8px;border-radius:50%;background:var(--'+(x<=14?'red':x<=30?'amber':'green')+');flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+d.client+'</div><div style="font-size:10px;color:var(--t3);text-align:right">'+x+'d &middot; '+$(d.value)+' &middot; '+(d.autoRenewal||'?')+(flags.length?' &middot; <span style="color:var(--red)">'+flags.join(', ')+'</span>':'')+'</div></div>'});
+  if(!up.length)h+='<div style="text-align:center;padding:20px;color:var(--t3);font-size:12px">No renewals needing action</div>';h+='</div>';
+  // 2. POCs
+  var pocs=D.filter(function(d){return d.pilot==='Yes'&&d.pocStatus!=='Expired'&&d.pocEnd&&du(d.pocEnd)<=60&&teamMatch(d)}).sort(function(a,b){return du(a.pocEnd)-du(b.pocEnd)});
+  h+='<div style="margin-bottom:18px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin-bottom:10px">🟠 POCs Expiring <span style="background:var(--card-a);padding:2px 8px;border-radius:10px;font-size:10px;color:var(--t1)">'+pocs.length+'</span></div>';
+  pocs.slice(0,8).forEach(function(d){var x=du(d.pocEnd);
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px;cursor:pointer" data-id="'+d.id+'"><div style="width:8px;height:8px;border-radius:50%;background:var(--'+(x<=7?'red':x<=30?'amber':'green')+');flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+d.client+'</div><div style="font-size:10px;color:var(--t3)">'+x+'d &middot; '+d.pocTerm+' &middot; '+$(d.value)+' ARR</div></div>'});
+  if(!pocs.length)h+='<div style="text-align:center;padding:20px;color:var(--t3);font-size:12px">No POCs expiring</div>';h+='</div>';
+  // 3. Stuck implementations
+  var stuck=C.filter(function(c){if(!c.iProg||!teamMatchC(c))return false;var days=c.init?Math.round((new Date()-c.init)/864e5):0;return days>45||c.tickets>3}).sort(function(a,b){var ad=a.init?(new Date()-a.init):0,bd=b.init?(new Date()-b.init):0;return bd-ad});
+  h+='<div style="margin-bottom:18px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin-bottom:10px">🟡 Stuck Implementations <span style="background:var(--card-a);padding:2px 8px;border-radius:10px;font-size:10px;color:var(--t1)">'+stuck.length+'</span></div>';
+  stuck.slice(0,8).forEach(function(x){var days=x.init?Math.round((new Date()-x.init)/864e5):0;
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px;cursor:pointer" data-cid="'+x.custId+'"><div style="width:8px;height:8px;border-radius:50%;background:var(--'+(days>60?'red':'amber')+');flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+x.name+'</div><div style="font-size:10px;color:var(--t3)">'+days+'d &middot; '+(x.stage||'?')+' &middot; '+x.tickets+' tickets</div></div>'});
+  if(!stuck.length)h+='<div style="text-align:center;padding:20px;color:var(--t3);font-size:12px">No stuck implementations</div>';h+='</div>';
+  // 4. Not publishing
+  var notPub=C.filter(function(c){return isPubRisk(c.pub)&&teamMatchC(c)}).sort(function(a,b){return b.mrrJan-a.mrrJan});
+  h+='<div style="margin-bottom:18px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin-bottom:10px">⚠️ Not Publishing <span style="background:var(--card-a);padding:2px 8px;border-radius:10px;font-size:10px;color:var(--t1)">'+notPub.length+'</span></div>';
+  notPub.slice(0,8).forEach(function(x){
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px;cursor:pointer" data-cid="'+x.custId+'"><div style="width:8px;height:8px;border-radius:50%;background:var(--'+(x.mrrJan>5000?'red':'amber')+');flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+x.name+'</div><div style="font-size:10px;color:var(--t3)">'+$(x.mrrJan)+' MRR &middot; '+(x.pub||'Unknown')+'</div></div>'});
+  if(!notPub.length)h+='<div style="text-align:center;padding:20px;color:var(--t3);font-size:12px">All clients publishing</div>';h+='</div>';
+  // 5. Collections
+  var hiBal=CL2.filter(function(c){return c.openBal>1000}).sort(function(a,b){return b.openBal-a.openBal});
+  h+='<div style="margin-bottom:18px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin-bottom:10px">💰 Collections Needed <span style="background:var(--card-a);padding:2px 8px;border-radius:10px;font-size:10px;color:var(--t1)">'+hiBal.length+'</span></div>';
+  hiBal.slice(0,8).forEach(function(x){
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px"><div style="width:8px;height:8px;border-radius:50%;background:var(--'+(x.openBal>10000?'red':x.openBal>5000?'amber':'green')+');flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+(x.company||x.name)+'</div><div style="font-size:10px;color:var(--t3)">'+$(x.openBal)+(x.email?' &middot; '+x.email:'')+'</div></div>'});
+  if(!hiBal.length)h+='<div style="text-align:center;padding:20px;color:var(--t3);font-size:12px">No collections needed</div>';h+='</div>';
+  // 6. Pending scopes
+  var pend=D.filter(function(d){return(d.status==='Draft'||d.status==='Pending Review')&&teamMatch(d)}).sort(function(a,b){return(b.created||0)-(a.created||0)});
+  h+='<div style="margin-bottom:18px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin-bottom:10px">📋 Scopes Pending <span style="background:var(--card-a);padding:2px 8px;border-radius:10px;font-size:10px;color:var(--t1)">'+pend.length+'</span></div>';
+  pend.slice(0,8).forEach(function(d){
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px;cursor:pointer" data-id="'+d.id+'"><div style="width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+d.client+'</div><div style="font-size:10px;color:var(--t3)"><span class="bd bd-'+sc(d.status)+'">'+d.status+'</span> &middot; '+d.scope+' &middot; '+$(d.value)+'</div></div>'});
+  if(!pend.length)h+='<div style="text-align:center;padding:20px;color:var(--t3);font-size:12px">No pending scopes</div>';h+='</div>';
+  document.getElementById('actionLists').innerHTML=h;
+}
+
 function rAEF(){if(!C.length){document.getElementById('aeCSMFilters').innerHTML='';return}var aes=['all'],csms=['all'];C.forEach(function(c){if(c.ae&&aes.indexOf(c.ae)===-1)aes.push(c.ae);if(c.csm&&csms.indexOf(c.csm)===-1)csms.push(c.csm)});aes.sort();csms.sort();var h='<span style="font-size:10px;color:var(--t3);font-weight:600">FILTER:</span> <select class="fb" id="aeFilter">';aes.forEach(function(a){h+='<option value="'+a+'"'+(aeF===a?' selected':'')+'>'+(a==='all'?'All AEs':a)+'</option>'});h+='</select> <select class="fb" id="csmFilter">';csms.forEach(function(c){h+='<option value="'+c+'"'+(csmF===c?' selected':'')+'>'+(c==='all'?'All CSMs':c)+'</option>'});h+='</select>';document.getElementById('aeCSMFilters').innerHTML=h}
 function rAct(){
   var c=MR(0),p=MR(-1),y=YTD(),n=new Date(),all=aF(D);
@@ -600,7 +684,8 @@ function handleDrill(key){
 
 // ═══ EVENTS ═══
 document.addEventListener('click',function(e){
-  var tab=e.target.closest('.tab');if(tab){curTab=tab.dataset.tab;document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.tab===curTab)});['execCnt','activityCnt','pocCnt','implCnt','renewalsCnt','actualsCnt'].forEach(function(id){document.getElementById(id).classList.toggle('off',id!==curTab+'Cnt')});return}
+  var ql=e.target.closest('[data-tab-link]');if(ql){curTab=ql.dataset.tabLink;document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.tab===curTab)});['execCnt','actionCnt','activityCnt','pocCnt','implCnt','renewalsCnt','actualsCnt'].forEach(function(id){document.getElementById(id).classList.toggle('off',id!==curTab+'Cnt')});return}
+  var tab=e.target.closest('.tab');if(tab){curTab=tab.dataset.tab;document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.tab===curTab)});['execCnt','actionCnt','activityCnt','pocCnt','implCnt','renewalsCnt','actualsCnt'].forEach(function(id){document.getElementById(id).classList.toggle('off',id!==curTab+'Cnt')});return}
   var dr=e.target.closest('[data-drill]');if(dr){handleDrill(dr.dataset.drill);return}
   var sf=e.target.closest('[data-sf]');if(sf){sF=sf.dataset.sf;rAct();return}
   var rf=e.target.closest('[data-rf]');if(rf){rF=rf.dataset.rf;rRen();return}
@@ -613,7 +698,8 @@ document.addEventListener('click',function(e){
   if(e.target.id==='exportBtn'){exportCSV();return}
   if(e.target.id==='drillX'||(e.target.classList.contains('mo')&&e.target.id==='drillMo')){document.getElementById('drillMo').classList.remove('open');return}
 });
-document.addEventListener('change',function(e){if(e.target.id==='aeFilter'){aeF=e.target.value;rAct();rExec()}if(e.target.id==='csmFilter'){csmF=e.target.value;rAct();rExec()}});
+document.addEventListener('change',function(e){if(e.target.id==='actionAEFilter'){rAction();return}
+if(e.target.id==='aeFilter'){aeF=e.target.value;rAct();rExec()}if(e.target.id==='csmFilter'){csmF=e.target.value;rAct();rExec()}});
 document.getElementById('refBtn').addEventListener('click',function(){var b=document.getElementById('refBtn');b.classList.add('spin');_m=null;_cl2Map=null;Promise.all([fetchData(),fetchCust(),fetchTxn()]).then(function(){setTimeout(function(){b.classList.remove('spin')},600);nR=Date.now()+RI})});
 var RI=5*60*1000,nR=Date.now()+RI;
 function startAR(){setInterval(function(){var b=document.getElementById('refBtn');b.classList.add('spin');_m=null;_cl2Map=null;Promise.all([fetchData(),fetchCust(),fetchTxn()]).then(function(){setTimeout(function(){b.classList.remove('spin')},600);nR=Date.now()+RI})},RI);setInterval(function(){var s=Math.max(0,Math.round((nR-Date.now())/1000)),m=Math.floor(s/60),ss=s%60;document.getElementById('timer').textContent='Updated '+new Date().toLocaleTimeString()+' · next '+m+':'+(ss<10?'0':'')+ss},1000)}
