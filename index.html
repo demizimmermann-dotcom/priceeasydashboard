@@ -142,13 +142,13 @@ tbody td{padding:8px 14px;font-size:11px;color:var(--t2)}tbody td:first-child{co
   </div>
   <!-- ACTUALS -->
   <div class="cnt off" id="actualsCnt">
+    <div id="actlHealthScore" style="margin-bottom:18px"></div>
     <div class="row" id="actlSummary"></div>
-    <div class="chart-grid"><div class="cs"><h2>Revenue by Customer (Top 15)</h2><div id="actlCustChart"></div></div><div class="cs"><h2>Revenue by Transaction Type</h2><div id="actlTypeChart"></div></div></div>
-    <div class="cs"><h2>Monthly Revenue Trend</h2><div id="actlTrendChart"></div></div>
-    <div class="chart-grid"><div class="cs"><h2>Invoiced vs Contracted ARR</h2><div id="actlVsARR"></div></div><div class="cs"><h2>Credit Memos ⚠️</h2><div id="actlCredits"></div></div></div>
+    <div class="cs"><h2>⚠️ AR Danger Zone <span style="font-size:10px;color:var(--t3);font-weight:400">Overdue AR + Renewing Soon</span></h2><div id="actlDangerZone"></div></div>
+    <div class="chart-grid"><div class="cs"><h2>Client Concentration Risk</h2><div id="actlConcentration"></div></div><div class="cs"><h2>Invoiced vs ARR Gap</h2><div id="actlVsARR"></div></div></div>
+    <div class="chart-grid"><div class="cs"><h2>Revenue by Client Tier</h2><div id="actlTiers"></div></div><div class="cs"><h2>Product Mix</h2><div id="actlSales"></div></div></div>
     <div class="cs"><h2>AR Aging Summary</h2><div id="actlARAging"></div></div>
-    <div class="cs"><h2>Sales by Product/Service</h2><div id="actlSales"></div></div>
-    <div class="ts-wrap"><div class="ts-hdr"><h2><span class="dot" style="background:var(--amber)"></span> Transaction Detail</h2></div><div class="tw"><table><thead id="actlTh"></thead><tbody id="actlTb"></tbody></table></div></div>
+    <div class="ts-wrap"><div class="ts-hdr"><h2><span class="dot" style="background:var(--amber)"></span> Transactions</h2></div><div class="tw"><table><thead id="actlTh"></thead><tbody id="actlTb"></tbody></table></div></div>
   </div>
 </div>
 <div class="mo" id="drillMo"><div class="ml"><div class="mh"><h3 id="drillT">Detail</h3><div style="display:flex;gap:8px;align-items:center"><button class="export-btn" id="exportBtn" style="display:none">📥 Export CSV</button><button class="mc" id="drillX">✕</button></div></div><div class="mb" id="drillB"></div></div></div>
@@ -630,60 +630,103 @@ function rRen(){
 }
 // ═══ TAB 5: ACTUALS ═══
 function rActuals(){
-  if(!T.length){document.getElementById('actlSummary').innerHTML=card('Loading…','…','Waiting for transaction data','cyan','');return}
-  var c=MR(0),p=MR(-1),y=YTD(),n=new Date();
-  var cTxn=T.filter(function(t){return inR(t.date,c)}),pTxn=T.filter(function(t){return inR(t.date,p)}),yTxn=T.filter(function(t){return inR(t.date,y)});
-  var cS=txnSummary(cTxn),pS=txnSummary(pTxn),yS=txnSummary(yTxn),allS=txnSummary(T);
-  // Credit memos as churn signal
-  var credits=T.filter(function(t){return t.type.toLowerCase().includes('credit')});
-  var cCredits=credits.filter(function(t){return inR(t.date,c)}),yCredits=credits.filter(function(t){return inR(t.date,y)});
-  var cCredAmt=0;cCredits.forEach(function(t){cCredAmt+=Math.abs(t.amount)});
-  var yCredAmt=0;yCredits.forEach(function(t){yCredAmt+=Math.abs(t.amount)});
+  if(!T.length&&!AR.length){document.getElementById('actlSummary').innerHTML=card('Loading…','…','Waiting for transaction data','cyan','');return}
+  // Core calculations
+  var totalInv=0,totalPay=0,totalCred=0;
+  T.forEach(function(t){var tt=(t.type||'').toLowerCase();if(tt.includes('invoice'))totalInv+=t.amount;else if(tt.includes('payment'))totalPay+=Math.abs(t.amount);else if(tt.includes('credit'))totalCred+=Math.abs(t.amount)});
+  var collRate=totalInv>0?Math.round(totalPay/totalInv*100):0;
+  var arTotal=0,arOverdue=0;AR.forEach(function(r){arTotal+=r.total;arOverdue+=r.d31_60+r.d61_90+r.d91});
+  // Collection velocity estimate: avg days between invoice and payment per client
+  var invDates={},payDates={};
+  T.forEach(function(t){var k=t.customer.toLowerCase();var tt=(t.type||'').toLowerCase();if(tt.includes('invoice')&&t.date){if(!invDates[k])invDates[k]=[];invDates[k].push(t.date)}else if(tt.includes('payment')&&t.date){if(!payDates[k])payDates[k]=[];payDates[k].push(t.date)}});
+  var totalCollDays=0,collCount=0;
+  Object.keys(invDates).forEach(function(k){if(!payDates[k])return;var firstInv=invDates[k].sort(function(a,b){return a-b})[0];var firstPay=payDates[k].sort(function(a,b){return a-b})[0];if(firstPay>firstInv){var days=Math.round((firstPay-firstInv)/864e5);if(days>0&&days<365){totalCollDays+=days;collCount++}}});
+  var avgCollDays=collCount>0?Math.round(totalCollDays/collCount):0;
+
+  // Revenue Health Score: 0-100 based on collection rate, AR aging, credit memo ratio
+  var healthPts=0;
+  healthPts+=Math.min(collRate,100)*0.4; // 40% weight on collection rate
+  var arHealthPct=arTotal>0?Math.max(0,100-Math.round(arOverdue/arTotal*100)):100;
+  healthPts+=arHealthPct*0.4; // 40% weight on AR health
+  var credRatio=totalInv>0?totalCred/totalInv*100:0;
+  healthPts+=Math.max(0,100-credRatio*10)*0.2; // 20% weight on low credit memos
+  var healthScore=Math.round(healthPts);
+  var hCol=healthScore>=75?'var(--green)':healthScore>=50?'var(--amber)':'var(--red)';
+
+  // Health Score gauge
+  document.getElementById('actlHealthScore').innerHTML='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:20px;display:flex;align-items:center;gap:30px;flex-wrap:wrap"><div style="text-align:center;min-width:120px"><div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Revenue Health</div><div style="font-family:Fraunces,serif;font-size:48px;font-weight:700;color:'+hCol+'">'+healthScore+'</div><div style="width:100%;height:10px;background:var(--card-a);border-radius:5px;margin-top:6px"><div style="height:100%;border-radius:5px;width:'+healthScore+'%;background:'+hCol+'"></div></div></div><div style="flex:1;display:flex;gap:20px;flex-wrap:wrap"><div style="flex:1;min-width:100px"><div style="font-size:10px;color:var(--t3)">Collection Rate</div><div style="font-size:18px;font-weight:700;color:var(--t1)">'+collRate+'%</div><div style="font-size:9px;color:var(--t3)">'+$(totalPay)+' of '+$(totalInv)+'</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;color:var(--t3)">AR Health</div><div style="font-size:18px;font-weight:700;color:'+(arOverdue>0?'var(--red)':'var(--green)')+'">'+$(arOverdue)+'</div><div style="font-size:9px;color:var(--t3)">overdue of '+$(arTotal)+' total</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;color:var(--t3)">Avg Days to Collect</div><div style="font-size:18px;font-weight:700;color:'+(avgCollDays>45?'var(--red)':avgCollDays>30?'var(--amber)':'var(--green)')+'">'+avgCollDays+'d</div><div style="font-size:9px;color:var(--t3)">from '+collCount+' client pairs</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;color:var(--t3)">Credit Memo Ratio</div><div style="font-size:18px;font-weight:700;color:'+(credRatio>5?'var(--red)':credRatio>2?'var(--amber)':'var(--green)')+'">'+credRatio.toFixed(1)+'%</div><div style="font-size:9px;color:var(--t3)">'+$(totalCred)+' in credits</div></div></div></div>';
+
+  // Summary cards
   document.getElementById('actlSummary').innerHTML=[
-    card('Invoiced Mo',$(cS.invoiced),MN[n.getMonth()],'cyan','actltxn-inv-current',trend(cS.invoiced,pS.invoiced)),
-    card('Invoiced Prior',$(pS.invoiced),MN[n.getMonth()===0?11:n.getMonth()-1],'blue','actltxn-inv-prior'),
-    card('Invoiced YTD',$(yS.invoiced),yTxn.length+' transactions','green','actltxn-inv-ytd'),
-    card('Payments Mo',$(cS.paid),cS.collectionRate+'% collected','cyan','actltxn-pay-current'),
-    card('Payments YTD',$(yS.paid),yS.collectionRate+'% collected','green','actltxn-pay-ytd'),
-    card('Collection Rate',yS.collectionRate+'%',$(yS.paid)+' of '+$(yS.invoiced),'amber','actltxn-all'),
-    card('Outstanding AR',$(allS.invoiced-allS.paid-allS.credits),'Net open','red','actltxn-ar'),
-    card('Credit Memos Mo',$(cCredAmt),cCredits.length+' memos ⚠️','rose','actltxn-credits')
+    card('Invoiced',$(totalInv),T.filter(function(t){return(t.type||'').toLowerCase().includes('invoice')}).length+' invoices','cyan','actltxn-inv-ytd'),
+    card('Collected',$(totalPay),collRate+'% rate','green','actltxn-pay-ytd'),
+    card('Open AR',$(arTotal),arOverdue>0?$(arOverdue)+' overdue':'All current','red','actltxn-ar'),
+    card('Avg Collection',avgCollDays+'d','Target: <30d','amber','actltxn-all'),
+    card('Credits',$(totalCred),credRatio.toFixed(1)+'% of invoiced','rose','actltxn-credits')
   ].join('');
-  // Revenue by Customer
-  var custMap={};T.filter(function(t){return t.type.toLowerCase().includes('invoice')}).forEach(function(t){var k=t.customer||'Unknown';if(!custMap[k])custMap[k]=0;custMap[k]+=t.amount});
-  var cSrt=Object.keys(custMap).sort(function(a,b){return custMap[b]-custMap[a]}),cMx=custMap[cSrt[0]]||1;
-  document.getElementById('actlCustChart').innerHTML=cSrt.slice(0,15).map(function(k,i){return'<div class="br" data-drill="actlcust-'+encodeURIComponent(k)+'" style="cursor:pointer"><div class="bl" style="width:140px;font-size:9px">'+k.substring(0,25)+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(custMap[k]/cMx*100,8)+'%">'+$(custMap[k])+'</div></div></div>'}).join('')||'<div class="empty">No invoice data</div>';
-  // Revenue by Type
-  var typeMap={};T.forEach(function(t){var k=t.type||'Other';if(!typeMap[k])typeMap[k]={c:0,v:0};typeMap[k].c++;typeMap[k].v+=t.amount});
-  var tSrt=Object.keys(typeMap).sort(function(a,b){return Math.abs(typeMap[b].v)-Math.abs(typeMap[a].v)}),tMx=Math.max.apply(null,tSrt.map(function(k){return Math.abs(typeMap[k].v)}).concat([1]));
-  document.getElementById('actlTypeChart').innerHTML=tSrt.map(function(k,i){var col=k.toLowerCase().includes('invoice')?'green':k.toLowerCase().includes('payment')?'cyan':k.toLowerCase().includes('credit')?'red':CL[i%CL.length];return'<div class="br" data-drill="actltype-'+encodeURIComponent(k)+'" style="cursor:pointer"><div class="bl">'+k+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(Math.abs(typeMap[k].v)/tMx*100,8)+'%">'+typeMap[k].c+' · '+$(typeMap[k].v)+'</div></div></div>'}).join('');
-  // Monthly trend
-  var moMap={};T.filter(function(t){return t.type.toLowerCase().includes('invoice')&&t.date}).forEach(function(t){var k=t.date.getFullYear()+'-'+(t.date.getMonth()<9?'0':'')+(t.date.getMonth()+1);if(!moMap[k])moMap[k]=0;moMap[k]+=t.amount});
-  var moKeys=Object.keys(moMap).sort(),moMx=Math.max.apply(null,Object.values(moMap).concat([1]));
-  document.getElementById('actlTrendChart').innerHTML=moKeys.map(function(k,i){var label=MN[parseInt(k.split('-')[1])-1]+' '+k.split('-')[0];return'<div class="br"><div class="bl">'+label+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(moMap[k]/moMx*100,8)+'%">'+$(moMap[k])+'</div></div></div>'}).join('')||'<div class="empty">No monthly data</div>';
-  // Invoiced vs ARR
+
+  // AR DANGER ZONE: clients with 60+ day AR who are also renewing soon
+  var dangerClients=[];
+  AR.forEach(function(r){
+    var overdue60=r.d61_90+r.d91;if(overdue60<=0)return;
+    // Find if this client is also renewing
+    var renewing=D.filter(function(d){return d.endDate&&du(d.endDate)>=0&&du(d.endDate)<=90&&normName(d.client)===normName(r.name)});
+    dangerClients.push({name:r.name,ar:r.total,overdue60:overdue60,d61:r.d61_90,d91:r.d91,renewing:renewing.length>0,renewDays:renewing.length?du(renewing[0].endDate):999,renewARR:renewing.length?renewing[0].value:0});
+  });
+  dangerClients.sort(function(a,b){return b.overdue60-a.overdue60});
+  var dzHtml='';
+  if(dangerClients.length){
+    dzHtml+='<div style="font-size:11px;color:var(--t2);margin-bottom:10px">'+dangerClients.length+' clients with 60+ day overdue AR:</div>';
+    dangerClients.slice(0,12).forEach(function(d){
+      dzHtml+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card-a);border:1px solid '+(d.renewing?'rgba(239,68,68,.4)':'var(--bdr)')+';border-radius:8px;margin-bottom:6px;cursor:pointer" data-drill="araging-'+encodeURIComponent(d.name)+'"><div style="width:8px;height:8px;border-radius:50%;background:var(--'+(d.d91>0?'red':'orange')+');flex-shrink:0"></div><div style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+d.name+'</div><div style="font-size:10px;color:var(--t3);text-align:right">'+$(d.overdue60)+' overdue'+(d.renewing?' &middot; <span style="color:var(--red);font-weight:700">RENEWING '+d.renewDays+'d &middot; '+$(d.renewARR)+' ARR</span>':'')+'</div></div>';
+    });
+  } else {dzHtml='<div style="text-align:center;padding:20px;color:var(--t3)">No clients with 60+ day overdue AR</div>'}
+  document.getElementById('actlDangerZone').innerHTML=dzHtml;
+
+  // CLIENT CONCENTRATION RISK
+  var custRev={};T.filter(function(t){return(t.type||'').toLowerCase().includes('invoice')}).forEach(function(t){var k=t.customer||'Unknown';custRev[k]=(custRev[k]||0)+t.amount});
+  var custSorted=Object.keys(custRev).sort(function(a,b){return custRev[b]-custRev[a]});
+  var top5Rev=0;custSorted.slice(0,5).forEach(function(k){top5Rev+=custRev[k]});
+  var top5Pct=totalInv>0?Math.round(top5Rev/totalInv*100):0;
+  var concCol=top5Pct>60?'var(--red)':top5Pct>40?'var(--amber)':'var(--green)';
+  var concHtml='<div style="margin-bottom:12px"><div style="font-size:10px;color:var(--t3);margin-bottom:4px">TOP 5 = '+top5Pct+'% OF REVENUE <span style="color:'+concCol+'">'+(top5Pct>60?'⚠️ High concentration':top5Pct>40?'⚡ Moderate':'✅ Diversified')+'</span></div><div style="width:100%;height:10px;background:var(--card-a);border-radius:5px"><div style="height:100%;border-radius:5px;width:'+top5Pct+'%;background:'+concCol+'"></div></div></div>';
+  var cMx=custRev[custSorted[0]]||1;
+  custSorted.slice(0,10).forEach(function(k,i){var pct=totalInv>0?Math.round(custRev[k]/totalInv*100):0;
+    concHtml+='<div class="br" data-drill="actlcust-'+encodeURIComponent(k)+'" style="cursor:pointer"><div class="bl" style="width:140px;font-size:9px">'+k.substring(0,25)+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(custRev[k]/cMx*100,8)+'%">'+$(custRev[k])+' ('+pct+'%)</div></div></div>'});
+  document.getElementById('actlConcentration').innerHTML=concHtml;
+
+  // INVOICED vs ARR GAP
   var arrByClient={};D.forEach(function(d){if(d.client){var k=normName(d.client);if(!arrByClient[k])arrByClient[k]=0;arrByClient[k]+=d.value}});
-  var vsData=cSrt.slice(0,10).map(function(k){var nk=normName(k);return{name:k,invoiced:custMap[k],arr:arrByClient[nk]||0}});
-  var vsMx=Math.max.apply(null,vsData.map(function(d){return Math.max(d.invoiced,d.arr)}).concat([1]));
-  document.getElementById('actlVsARR').innerHTML=vsData.map(function(d,i){var ratio=d.arr>0?(d.invoiced/d.arr*100).toFixed(0)+'%':'N/A';return'<div style="margin-bottom:8px"><div style="font-size:10px;color:var(--t2);margin-bottom:3px">'+d.name.substring(0,25)+' <span style="color:var(--t3)">('+ratio+' of ARR)</span></div><div class="br" style="margin-bottom:2px"><div class="bl" style="width:60px">Invoiced</div><div class="bt"><div class="bf green" style="width:'+Math.max(d.invoiced/vsMx*100,5)+'%">'+$(d.invoiced)+'</div></div></div><div class="br"><div class="bl" style="width:60px">ARR</div><div class="bt"><div class="bf blue" style="width:'+Math.max(d.arr/vsMx*100,5)+'%">'+$(d.arr)+'</div></div></div></div>'}).join('')||'<div class="empty">No comparison data</div>';
-  // Credit memos detail
-  var credByClient={};credits.forEach(function(t){var k=t.customer||'Unknown';if(!credByClient[k])credByClient[k]={c:0,v:0};credByClient[k].c++;credByClient[k].v+=Math.abs(t.amount)});
-  var crSrt=Object.keys(credByClient).sort(function(a,b){return credByClient[b].v-credByClient[a].v}),crMx=credByClient[crSrt[0]]?credByClient[crSrt[0]].v:1;
-  document.getElementById('actlCredits').innerHTML=(crSrt.length?crSrt.slice(0,10).map(function(k,i){return barV(k.substring(0,25),credByClient[k].c,credByClient[k].v,crMx,'red','actlcred-'+encodeURIComponent(k))}).join(''):'<div class="empty">No credit memos</div>');
-  // AR Aging
-  if(AR.length){var totCur=0,tot30=0,tot60=0,tot90=0,tot91=0;AR.forEach(function(r){totCur+=r.current;tot30+=r.d1_30;tot60+=r.d31_60;tot90+=r.d61_90;tot91+=r.d91});
-    var arMx=Math.max(totCur,tot30,tot60,tot90,tot91,1);
-    document.getElementById('actlARAging').innerHTML='<div style="margin-bottom:12px;display:flex;gap:20px;flex-wrap:wrap;text-align:center"><div style="flex:1"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--green)">'+$(totCur)+'</div><div style="font-size:10px;color:var(--t3)">Current</div></div><div style="flex:1"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--cyan)">'+$(tot30)+'</div><div style="font-size:10px;color:var(--t3)">1-30</div></div><div style="flex:1"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--amber)">'+$(tot60)+'</div><div style="font-size:10px;color:var(--t3)">31-60</div></div><div style="flex:1"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--orange)">'+$(tot90)+'</div><div style="font-size:10px;color:var(--t3)">61-90</div></div><div style="flex:1"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--red)">'+$(tot91)+'</div><div style="font-size:10px;color:var(--t3)">91+</div></div></div>'+
-    AR.sort(function(a,b){return b.total-a.total}).slice(0,20).map(function(r,i){var overdue=r.d31_60+r.d61_90+r.d91;var col=overdue>0?'red':r.d1_30>0?'amber':'green';return'<div class="br" data-drill="araging-'+encodeURIComponent(r.name)+'" style="cursor:pointer"><div class="bl" style="width:140px;font-size:9px">'+r.name.substring(0,25)+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(r.total/AR[0].total*100,8)+'%">'+$(r.total)+(overdue>0?' ('+$(overdue)+' overdue)':'')+'</div></div></div>'}).join('')}
-  else{document.getElementById('actlARAging').innerHTML='<div class="empty">AR Aging data not loaded</div>'}
-  // Sales by Product
+  var gapData=custSorted.slice(0,12).map(function(k){var nk=normName(k);var arr=arrByClient[nk]||0;var inv=custRev[k];var gap=arr>0?Math.round((inv/arr-1)*100):0;return{name:k,inv:inv,arr:arr,gap:gap}}).filter(function(d){return d.arr>0});
+  gapData.sort(function(a,b){return Math.abs(b.gap)-Math.abs(a.gap)});
+  var gapHtml='';
+  gapData.slice(0,10).forEach(function(d){
+    var col=d.gap>20?'green':d.gap>-10?'amber':'red';var label=d.gap>0?'+'+d.gap+'% over ARR':d.gap+'% under ARR';
+    gapHtml+='<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px"><span style="color:var(--t2)">'+d.name.substring(0,25)+'</span><span style="color:var(--'+col+');font-weight:600">'+label+'</span></div><div style="display:flex;gap:4px"><div style="flex:1;height:16px;background:var(--card-a);border-radius:3px;overflow:hidden"><div style="height:100%;background:var(--cyan);border-radius:3px;width:'+Math.min(d.inv/Math.max(d.inv,d.arr)*100,100)+'%;display:flex;align-items:center;padding-left:4px;font-size:8px;color:#fff">Inv '+$(d.inv)+'</div></div><div style="flex:1;height:16px;background:var(--card-a);border-radius:3px;overflow:hidden"><div style="height:100%;background:var(--blue);border-radius:3px;width:'+Math.min(d.arr/Math.max(d.inv,d.arr)*100,100)+'%;display:flex;align-items:center;padding-left:4px;font-size:8px;color:#fff">ARR '+$(d.arr)+'</div></div></div></div>'});
+  document.getElementById('actlVsARR').innerHTML=gapHtml||'<div style="text-align:center;padding:20px;color:var(--t3)">No ARR comparison data</div>';
+
+  // REVENUE BY CLIENT TIER
+  var tiers={'Enterprise (>$50K)':{c:0,v:0},'Mid ($10K-$50K)':{c:0,v:0},'Small ($1K-$10K)':{c:0,v:0},'Micro (<$1K)':{c:0,v:0}};
+  custSorted.forEach(function(k){var v=custRev[k];if(v>=50000)tiers['Enterprise (>$50K)'].c++,tiers['Enterprise (>$50K)'].v+=v;else if(v>=10000)tiers['Mid ($10K-$50K)'].c++,tiers['Mid ($10K-$50K)'].v+=v;else if(v>=1000)tiers['Small ($1K-$10K)'].c++,tiers['Small ($1K-$10K)'].v+=v;else tiers['Micro (<$1K)'].c++,tiers['Micro (<$1K)'].v+=v});
+  var tierMax=Math.max.apply(null,Object.keys(tiers).map(function(k){return tiers[k].v}).concat([1]));
+  var tierCols=['green','cyan','amber','violet'];
+  document.getElementById('actlTiers').innerHTML=Object.keys(tiers).map(function(k,i){return barV(k,tiers[k].c,tiers[k].v,tierMax,tierCols[i],'actltier-'+i)}).join('');
+
+  // PRODUCT MIX
   if(SP.length){var spMx=Math.max.apply(null,SP.map(function(s){return Math.abs(s.amount)}).concat([1]));
-    document.getElementById('actlSales').innerHTML=SP.sort(function(a,b){return Math.abs(b.amount)-Math.abs(a.amount)}).map(function(s,i){var mCol=s.grossMarginPct>=50?'green':s.grossMarginPct>=20?'amber':'red';return'<div class="br" data-drill="actlprod-'+encodeURIComponent(s.product)+'" style="cursor:pointer"><div class="bl" style="width:150px;font-size:9px">'+s.product.substring(0,30)+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(Math.abs(s.amount)/spMx*100,8)+'%">'+$(s.amount)+' · '+s.qty+' qty · '+s.grossMarginPct.toFixed(0)+'% margin</div></div></div>'}).join('')}
-  else{document.getElementById('actlSales').innerHTML='<div class="empty">Sales data not loaded</div>'}
+    document.getElementById('actlSales').innerHTML=SP.sort(function(a,b){return Math.abs(b.amount)-Math.abs(a.amount)}).map(function(s,i){var mCol=s.grossMarginPct>=50?'green':s.grossMarginPct>=20?'amber':'red';return'<div class="br" style="cursor:pointer"><div class="bl" style="width:140px;font-size:9px">'+s.product.substring(0,28)+'</div><div class="bt"><div class="bf '+CL[i%CL.length]+'" style="width:'+Math.max(Math.abs(s.amount)/spMx*100,8)+'%">'+$(s.amount)+' &middot; '+s.grossMarginPct.toFixed(0)+'% margin</div></div></div>'}).join('')}
+  else{document.getElementById('actlSales').innerHTML='<div style="text-align:center;padding:20px;color:var(--t3)">Sales data not loaded</div>'}
+
+  // AR AGING
+  if(AR.length){var totCur=0,tot30=0,tot60=0,tot90=0,tot91=0;AR.forEach(function(r){totCur+=r.current;tot30+=r.d1_30;tot60+=r.d31_60;tot90+=r.d61_90;tot91+=r.d91});
+    document.getElementById('actlARAging').innerHTML='<div style="margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap;text-align:center"><div style="flex:1;min-width:80px"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--green)">'+$(totCur)+'</div><div style="font-size:9px;color:var(--t3)">Current</div></div><div style="flex:1;min-width:80px"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--cyan)">'+$(tot30)+'</div><div style="font-size:9px;color:var(--t3)">1-30</div></div><div style="flex:1;min-width:80px"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--amber)">'+$(tot60)+'</div><div style="font-size:9px;color:var(--t3)">31-60</div></div><div style="flex:1;min-width:80px"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--orange)">'+$(tot90)+'</div><div style="font-size:9px;color:var(--t3)">61-90</div></div><div style="flex:1;min-width:80px"><div style="font-size:20px;font-weight:700;font-family:Fraunces,serif;color:var(--red)">'+$(tot91)+'</div><div style="font-size:9px;color:var(--t3)">91+</div></div></div>'+
+    AR.sort(function(a,b){return b.total-a.total}).slice(0,15).map(function(r,i){var ov=r.d31_60+r.d61_90+r.d91;var col=ov>0?'red':r.d1_30>0?'amber':'green';return'<div class="br" data-drill="araging-'+encodeURIComponent(r.name)+'" style="cursor:pointer"><div class="bl" style="width:140px;font-size:9px">'+r.name.substring(0,25)+'</div><div class="bt"><div class="bf '+col+'" style="width:'+Math.max(r.total/AR[0].total*100,8)+'%">'+$(r.total)+(ov>0?' ('+$(ov)+' overdue)':'')+'</div></div></div>'}).join('')}
+  else{document.getElementById('actlARAging').innerHTML='<div style="text-align:center;padding:20px;color:var(--t3)">AR data not loaded</div>'}
+
   // Transaction table
-  document.getElementById('actlTh').innerHTML='<tr><th>Customer</th><th>Date</th><th>Type</th><th>Num</th><th>Account</th><th>Amount</th></tr>';
+  document.getElementById('actlTh').innerHTML='<tr><th>Customer</th><th>Date</th><th>Type</th><th>Num</th><th>Amount</th><th>Account</th></tr>';
   var recent=T.slice().sort(function(a,b){return(b.date||0)-(a.date||0)});
-  document.getElementById('actlTb').innerHTML=recent.slice(0,60).map(function(t){var col=t.type.toLowerCase().includes('invoice')?'green':t.type.toLowerCase().includes('payment')?'cyan':t.type.toLowerCase().includes('credit')?'red':'violet';return'<tr><td>'+t.customer+'</td><td>'+fd(t.date)+'</td><td><span class="bd bd-'+col+'">'+t.type+'</span></td><td>'+t.num+'</td><td style="font-size:10px">'+t.account+'</td><td>'+$(t.amount)+'</td></tr>'}).join('')||'<tr><td colspan="6"><div class="empty">No transactions.</div></td></tr>';
+  document.getElementById('actlTb').innerHTML=recent.slice(0,50).map(function(t){var col=(t.type||'').toLowerCase().includes('invoice')?'green':(t.type||'').toLowerCase().includes('payment')?'cyan':(t.type||'').toLowerCase().includes('credit')?'red':'violet';return'<tr><td>'+t.customer+'</td><td>'+fd(t.date)+'</td><td><span class="bd bd-'+col+'">'+t.type+'</span></td><td>'+t.num+'</td><td>'+$(t.amount)+'</td><td style="font-size:9px">'+t.account+'</td></tr>'}).join('')||'<tr><td colspan="6"><div style="text-align:center;padding:20px;color:var(--t3)">No transactions</div></td></tr>';
 }
 
 // ═══ DRILLS + EXPORT ═══
