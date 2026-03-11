@@ -146,10 +146,11 @@ var loginRequest={scopes:["https://priceeasy1.sharepoint.com/.default"]};
 var msalInstance=new msal.PublicClientApplication(msalConfig);var accessToken=null;
 var SITE='https://priceeasy1.sharepoint.com/sites/AccountingFinance',GUID='47f480c2-eb0f-4408-b62a-b0b3d85d88e4';
 var CUST_KNOWN_PATH='/Customer Master/Customer Master and Tracker (All Teams).xlsx',CUST_FILE_GUID='6b85d56a-1ad8-4dac-a1b4-6466ca6a4f80';
-var D=[],C=[],curTab='exec',sF='all',rF='all',aeF='all',csmF='all',_drillData=null;
+var D=[],C=[],T=[],curTab='exec',sF='all',rF='all',aeF='all',csmF='all',_drillData=null;
+function normName(n){return(n||'').toLowerCase().replace(/[,.]|\b(inc|llc|ltd|corp|co|company|the)\b/gi,'').replace(/\s+/g,' ').trim()}
 msalInstance.handleRedirectPromise().then(function(r){if(r){accessToken=r.accessToken;go()}else{var a=msalInstance.getAllAccounts();if(a.length>0)msalInstance.acquireTokenSilent({scopes:loginRequest.scopes,account:a[0]}).then(function(t){accessToken=t.accessToken;go()}).catch(function(){})}}).catch(function(e){console.error(e)});
 document.getElementById('loginBtn').addEventListener('click',function(){msalInstance.loginRedirect(loginRequest)});
-function go(){document.getElementById('loginScreen').style.display='none';document.getElementById('dashboard').style.display='block';fetchData();fetchCust();startAR()}
+function go(){document.getElementById('loginScreen').style.display='none';document.getElementById('dashboard').style.display='block';fetchData();fetchCust();fetchTxn();startAR()}
 
 // ═══ FETCH ═══
 function fetchData(){var url=SITE+"/_api/web/lists(guid'"+GUID+"')/items?$top=5000&$select=*",h={'Accept':'application/json;odata=verbose'};if(accessToken)h['Authorization']='Bearer '+accessToken;return fetch(url,{headers:h,credentials:accessToken?'omit':'include'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(function(j){var rows=(j.d&&j.d.results)?j.d.results:(j.value||[]);D=rows.map(pR);setS(true,D.length+' scopes');renderAll();uT()}).catch(function(e){console.error(e);setS(false,e.message)})}
@@ -169,7 +170,24 @@ function dlXL(path,site){return fetch(site+"/_api/web/GetFileByServerRelativeUrl
 function pXL(buf){var wb=XLSX.read(buf,{type:'array'}),sn=wb.SheetNames.indexOf('CS Tracker')!==-1?'CS Tracker':wb.SheetNames[0],rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''}),vals=rows.slice(2);if(!vals||vals.length<2)return;var hdrs=vals[0].map(function(h){return(h||'').toString().trim()});C=[];for(var i=1;i<vals.length;i++){var row=vals[i],o={};hdrs.forEach(function(h,idx){o[h]=row[idx]!==undefined?row[idx]:''});if(o['CUSTOMER_NAME']||o['CUSTOMER_ID'])C.push(pCR(o))}}
 function pED(v){if(!v)return null;if(v instanceof Date)return isNaN(v)?null:v;if(typeof v==='number'){var d=new Date((v-25569)*86400000);return isNaN(d)?null:d}var d=new Date(v);return isNaN(d)?null:d}
 function pCR(r){var init=pED(r['Initiation']),end=pED(r['End']);
-return{custId:String(r['CUSTOMER_ID']||'').trim(),name:r['CUSTOMER_NAME']||'Unknown',ae:r['AE']||'',csm:r['CSM']||'',stage:r['Stage']||'',pub:r['PUBLISH_ACTIVITY']||'',tickets:parseInt(r['TICKET_ACTIVITY'])||0,actSt:parseInt(r['ACTIVE_STATIONS'])||0,inSt:parseInt(r['INACTIVE_STATIONS'])||0,totSt:parseInt(r['TOTAL_STATIONS'])||0,init:init,iEnd:end,iDays:init&&end?Math.round((end-init)/864e5):null,iProg:init&&!end?true:false,iDone:init&&end?true:false,health:r['Health']||'',rag:r['RAG']||'',upsell:parseFloat(r['UPSELL_SCORE'])||0,churn:parseFloat(r['CHURN_SCORE'])||0,mrrJan:parseFloat(r['MRR JAN 2026'])||0,cDate:pED(r['CONTRACT DATE']),rDate:pED(r['RENEWAL DATE']),update:r['Latest Update']||''}}
+return{custId:String(r['CUSTOMER_ID']||'').trim(),name:r['CUSTOMER_NAME']||'Unknown',ae:r['AE']||'',csm:r['CSM']||'',stage:r['Stage']||'',pub:r['PUBLISH_ACTIVITY']||'',tickets:parseInt(r['Ticket-Active'])||0,actSt:parseInt(r['ACTIVE_STATIONS'])||0,inSt:parseInt(r['INACTIVE_STATIONS'])||0,totSt:parseInt(r['TOTAL_STATIONS'])||0,init:init,iEnd:end,iDays:init&&end?Math.round((end-init)/864e5):null,iProg:init&&!end?true:false,iDone:init&&end?true:false,health:r['Health']||'',rag:r['RAG']||'',upsell:parseFloat(r['UPSELL_SCORE'])||0,churn:parseFloat(r['CHURN_SCORE'])||0,mrrJan:parseFloat(r['MRR JAN 2026'])||0,cDate:pED(r['CONTRACT DATE']),rDate:pED(r['RENEWAL DATE']),update:r['Latest Update']||''}}
+
+// ═══ FETCH TRANSACTION LIST ═══
+function fetchTxn(){if(!accessToken)return;
+var path='/sites/AccountingFinance/Shared Documents/TRANSACTION LIST BY CUSTOMER YTD.xlsx';
+var url=SITE+"/_api/web/GetFileByServerRelativeUrl('"+path.replace(/'/g,"''")+"')/$value";
+fetch(url,{headers:{'Authorization':'Bearer '+accessToken}}).then(function(r){if(!r.ok)throw new Error('Txn DL fail');return r.arrayBuffer()}).then(function(buf){return pTXL(buf)}).then(function(){console.log('Txn loaded:',T.length);renderAll()}).catch(function(e){console.error('Txn:',e)})}
+function pTXL(buf){var wb=XLSX.read(buf,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+T=rows.map(function(r){return{customer:(r['Customer']||'').trim(),date:pED(r['Date']),type:(r['Transaction type']||r['Transaction Type']||'').trim(),num:r['Num']||'',posting:(r['Posting (Y/N)']||'').toString().trim(),memo:r['Memo/Description']||'',account:r['Account']||'',amount:parseFloat(r['Amount'])||0,clientId:String(r['Client ID']||'').trim()}}).filter(function(t){return t.customer||t.clientId})}
+// Transaction join: match T records to D records via clientId or normalized name
+function getTxn(clientId,clientName){
+  var results=[];var cid=(clientId||'').toLowerCase(),cname=normName(clientName);
+  T.forEach(function(t){
+    if(cid&&t.clientId&&t.clientId.toLowerCase()===cid){results.push(t);return}
+    if(cname&&normName(t.customer)===cname)results.push(t);
+  });return results}
+function getTxnForAll(items){var all=[];items.forEach(function(d){getTxn(d.clientId,d.client).forEach(function(t){all.push(t)})});return all}
+function txnSummary(txns){var inv=0,pay=0,cm=0;txns.forEach(function(t){var tt=t.type.toLowerCase();if(tt.includes('invoice'))inv+=t.amount;else if(tt.includes('payment'))pay+=Math.abs(t.amount);else if(tt.includes('credit'))cm+=Math.abs(t.amount)});return{invoiced:inv,paid:pay,credits:cm,net:inv-pay-cm,collectionRate:inv>0?Math.round(pay/inv*100):0}}
 
 // ═══ JOIN & HELPERS ═══
 var _m=null;function cm(){if(!_m||_m._l!==C.length){_m={_l:C.length};C.forEach(function(c){if(c.custId)_m[c.custId.toLowerCase()]=c})}return _m}
@@ -210,7 +228,9 @@ function rExec(){
     card('Active POCs',activePocs.length,pocs.length+' total','orange','poc-active'),
     card('In Implementation',implProg.length,'Clients in progress','green','impl-inprogress'),
     card('Renewals ≤30d',up.length,$(sv(up))+' ARR','red','ren-0-30'),
-    card('Revenue at Risk',$(riskARR),'Churn flagged clients','rose','ren-risk-all')
+    card('Revenue at Risk',$(riskARR),'Churn flagged','rose','ren-risk-all'),
+    T.length?card('Invoiced YTD',$(txnSummary(T).invoiced),txnSummary(T).collectionRate+'% collected','amber','txn-all'):'',
+    T.length?card('Collection Rate',txnSummary(T).collectionRate+'%',$(txnSummary(T).paid)+' received','violet','txn-all'):''
   ].join('');
   // Mini charts
   var scopes=[...new Set(all.map(function(d){return d.scope}))];var sMx=1;var sData={};scopes.forEach(function(s){var cnt=all.filter(function(d){return d.scope===s&&inR(d.effectiveDate,y)}).length;sData[s]=cnt;if(cnt>sMx)sMx=cnt});
@@ -257,7 +277,7 @@ function rAct(){
 function rPoc(){
   var c=MR(0),p=MR(-1),y=YTD(),pocs=D.filter(function(d){return d.pilot==='Yes'});
   var ci=pocs.filter(function(d){return inR(d.effectiveDate,c)}),pi=pocs.filter(function(d){return inR(d.effectiveDate,p)}),yi=pocs.filter(function(d){return inR(d.effectiveDate,y)});
-  var active=pocs.filter(function(d){return d.pocStatus==='Active'}),exp7=pocs.filter(function(d){return d.pocEnd&&du(d.pocEnd)>=0&&du(d.pocEnd)<=7}),exp30=pocs.filter(function(d){return d.pocStatus==='Expiring Soon'}),expired=pocs.filter(function(d){return d.pocStatus==='Expired'});
+  var active=pocs.filter(function(d){return d.pocStatus!=='Expired'}),exp7=pocs.filter(function(d){return d.pocEnd&&du(d.pocEnd)>=0&&du(d.pocEnd)<=7}),exp30=pocs.filter(function(d){return d.pocStatus==='Expiring Soon'}),expired=pocs.filter(function(d){return d.pocStatus==='Expired'});
   var ccost=0,pcost=0,ycost=0;ci.forEach(function(d){ccost+=d.pocTotalCost});pi.forEach(function(d){pcost+=d.pocTotalCost});yi.forEach(function(d){ycost+=d.pocTotalCost});
   // Conversion rate: POCs that became non-POC scopes (same clientId appears with pilot!='Yes')
   var pocClientIds={};pocs.forEach(function(d){if(d.clientId)pocClientIds[d.clientId.toLowerCase()]=true});
@@ -355,7 +375,9 @@ function rRen(){
     card('At Risk',riskClients.length,$(riskARR)+' ARR exposed','red','ren-risk-all')
   ].join('');
   // Revenue at risk
-  document.getElementById('renRevenueRisk').innerHTML='<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px"><div style="text-align:center;flex:1"><div style="font-family:Fraunces,serif;font-size:32px;font-weight:700;color:var(--red)">'+$(riskARR)+'</div><div style="font-size:11px;color:var(--t3)">Total Revenue at Risk</div></div><div style="text-align:center;flex:1"><div style="font-family:Fraunces,serif;font-size:32px;font-weight:700;color:var(--red)">'+highRisk.length+'</div><div style="font-size:11px;color:var(--t3)">High Risk Clients</div></div><div style="text-align:center;flex:1"><div style="font-family:Fraunces,serif;font-size:32px;font-weight:700;color:var(--amber)">'+medRisk.length+'</div><div style="font-size:11px;color:var(--t3)">Medium Risk Clients</div></div></div>';
+  // Revenue at risk with actual transaction data
+  var riskTxnTotal=0;if(T.length){riskClients.forEach(function(r){var txns=getTxn(r.d.clientId,r.d.client);var s=txnSummary(txns);riskTxnTotal+=s.invoiced})}
+  document.getElementById('renRevenueRisk').innerHTML='<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px"><div style="text-align:center;flex:1"><div style="font-family:Fraunces,serif;font-size:32px;font-weight:700;color:var(--red)">'+$(riskARR)+'</div><div style="font-size:11px;color:var(--t3)">ARR at Risk</div></div><div style="text-align:center;flex:1"><div style="font-family:Fraunces,serif;font-size:32px;font-weight:700;color:var(--red)">'+highRisk.length+'</div><div style="font-size:11px;color:var(--t3)">High Risk</div></div><div style="text-align:center;flex:1"><div style="font-family:Fraunces,serif;font-size:32px;font-weight:700;color:var(--amber)">'+medRisk.length+'</div><div style="font-size:11px;color:var(--t3)">Medium Risk</div></div>'+(T.length?'<div style="text-align:center;flex:1"><div style="font-family:Fraunces,serif;font-size:32px;font-weight:700;color:var(--orange)">'+$(riskTxnTotal)+'</div><div style="font-size:11px;color:var(--t3)">YTD Revenue (at risk clients)</div></div>':'')+'</div>';
   // Retention scorecard
   document.getElementById('renScorecard').innerHTML=riskClients.slice(0,20).map(function(r){return'<div class="score-card" data-id="'+r.d.id+'"><div class="score-dot '+r.level+'"></div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--t1)">'+r.d.client+'</div><div style="font-size:10px;color:var(--t3)">'+r.risks.join(' · ')+' — renews '+fd(r.d.endDate)+' · '+$(r.d.value)+'</div></div><div style="font-size:11px;font-weight:700;color:var(--'+(r.level==='high'?'red':'amber')+')">'+r.score+'pts</div></div>'}).join('')||'<div class="empty">No risk clients.</div>';
   // Term type by bucket
@@ -409,7 +431,7 @@ function handleDrill(key){
   if(key==='poc-current')return showScopeDrill('POCs Current Mo',pocs.filter(function(d){return inR(d.effectiveDate,c)}));
   if(key==='poc-prior')return showScopeDrill('POCs Prior Mo',pocs.filter(function(d){return inR(d.effectiveDate,p)}));
   if(key==='poc-ytd'||key==='poc-all')return showScopeDrill('POCs YTD',pocs.filter(function(d){return inR(d.effectiveDate,y)}));
-  if(key==='poc-active')return showScopeDrill('Active POCs',pocs.filter(function(d){return d.pocStatus==='Active'}));
+  if(key==='poc-active')return showScopeDrill('Active POCs',pocs.filter(function(d){return d.pocStatus!=='Expired'}));
   if(key==='poc-exp7')return showScopeDrill('POCs ≤7 Days',pocs.filter(function(d){return d.pocEnd&&du(d.pocEnd)>=0&&du(d.pocEnd)<=7}));
   if(key==='poc-expiring')return showScopeDrill('POCs ≤30 Days',pocs.filter(function(d){return d.pocStatus==='Expiring Soon'}));
   if(key==='poc-expired')return showScopeDrill('Expired POCs',pocs.filter(function(d){return d.pocStatus==='Expired'}));
@@ -431,6 +453,7 @@ function handleDrill(key){
   if(key==='ren-risk-all'){var rc=[];up.forEach(function(d){var cs=gc(d);if((cs&&(cs.pub==='Not Publishing'||cs.pub==='None'||cs.pub==='Low'))||(d.notes&&d.notes.toLowerCase().match(/churn|cancel|without notice/))||(cs&&cs.churn>=7))rc.push(d)});return showScopeDrill('At Risk Renewals',rc)}
   if(key.indexOf('ren-')===0){var rk=key.replace('ren-','');return showScopeDrill(rk+' Days',up.filter(function(d){return bk(d.endDate)===rk}))}
   if(key.indexOf('renbkt-')===0){var parts=key.replace('renbkt-','').split('-');var bkt=parts[0]+'-'+parts[1],term=parts[2];return showScopeDrill(bkt+' — '+term,up.filter(function(d){return bk(d.endDate)===bkt&&(term==='Annual'?d.autoRenewal==='Annual':term==='MtM'?d.autoRenewal==='Month to Month':true)}))}
+  if(key==='txn-all'&&T.length){var s=txnSummary(T);_drillData={type:'scope',items:[],title:'Transactions'};document.getElementById('exportBtn').style.display='inline-block';document.getElementById('drillT').textContent='Transaction Summary ('+T.length+' transactions)';var byType={};T.forEach(function(t){var tt=t.type||'Other';if(!byType[tt])byType[tt]={c:0,v:0};byType[tt].c++;byType[tt].v+=t.amount});var h='<div style="margin-bottom:14px;font-size:12px;color:var(--t2)">Invoiced: <strong style="color:var(--t1)">'+$(s.invoiced)+'</strong> · Paid: <strong style="color:var(--green)">'+$(s.paid)+'</strong> · Credits: '+$(s.credits)+' · Collection: <strong>'+s.collectionRate+'%</strong></div>';h+='<div class="tw"><table><thead><tr><th>Type</th><th>Count</th><th>Amount</th></tr></thead><tbody>';Object.keys(byType).sort(function(a,b){return Math.abs(byType[b].v)-Math.abs(byType[a].v)}).forEach(function(k){h+='<tr><td>'+k+'</td><td>'+byType[k].c+'</td><td>'+$(byType[k].v)+'</td></tr>'});h+='</tbody></table></div>';document.getElementById('drillB').innerHTML=h;document.getElementById('drillMo').classList.add('open');return}
 }
 
 // ═══ EVENTS ═══
@@ -449,9 +472,9 @@ document.addEventListener('click',function(e){
   if(e.target.id==='drillX'||(e.target.classList.contains('mo')&&e.target.id==='drillMo')){document.getElementById('drillMo').classList.remove('open');return}
 });
 document.addEventListener('change',function(e){if(e.target.id==='aeFilter'){aeF=e.target.value;rAct();rExec()}if(e.target.id==='csmFilter'){csmF=e.target.value;rAct();rExec()}});
-document.getElementById('refBtn').addEventListener('click',function(){var b=document.getElementById('refBtn');b.classList.add('spin');_m=null;Promise.all([fetchData(),fetchCust()]).then(function(){setTimeout(function(){b.classList.remove('spin')},600);nR=Date.now()+RI})});
+document.getElementById('refBtn').addEventListener('click',function(){var b=document.getElementById('refBtn');b.classList.add('spin');_m=null;Promise.all([fetchData(),fetchCust(),fetchTxn()]).then(function(){setTimeout(function(){b.classList.remove('spin')},600);nR=Date.now()+RI})});
 var RI=5*60*1000,nR=Date.now()+RI;
-function startAR(){setInterval(function(){var b=document.getElementById('refBtn');b.classList.add('spin');_m=null;Promise.all([fetchData(),fetchCust()]).then(function(){setTimeout(function(){b.classList.remove('spin')},600);nR=Date.now()+RI})},RI);setInterval(function(){var s=Math.max(0,Math.round((nR-Date.now())/1000)),m=Math.floor(s/60),ss=s%60;document.getElementById('timer').textContent='Updated '+new Date().toLocaleTimeString()+' · next '+m+':'+(ss<10?'0':'')+ss},1000)}
+function startAR(){setInterval(function(){var b=document.getElementById('refBtn');b.classList.add('spin');_m=null;Promise.all([fetchData(),fetchCust(),fetchTxn()]).then(function(){setTimeout(function(){b.classList.remove('spin')},600);nR=Date.now()+RI})},RI);setInterval(function(){var s=Math.max(0,Math.round((nR-Date.now())/1000)),m=Math.floor(s/60),ss=s%60;document.getElementById('timer').textContent='Updated '+new Date().toLocaleTimeString()+' · next '+m+':'+(ss<10?'0':'')+ss},1000)}
 </script>
 </body>
 </html>
