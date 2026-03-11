@@ -161,6 +161,8 @@ var SITE='https://priceeasy1.sharepoint.com/sites/AccountingFinance',GUID='47f48
 var CUST_KNOWN_PATH='/Customer Master/Customer Master and Tracker (All Teams).xlsx',CUST_FILE_GUID='6b85d56a-1ad8-4dac-a1b4-6466ca6a4f80';
 var D=[],C=[],T=[],AR=[],SP=[],CL2=[],curTab='exec',sF='all',rF='all',aeF='all',csmF='all',_drillData=null;
 function normName(n){return(n||'').toLowerCase().replace(/[,.]|\b(inc|llc|ltd|corp|co|company|the)\b/gi,'').replace(/\s+/g,' ').trim()}
+function isPubRisk(v){var p=(v||'').toLowerCase().replace(/[_ ]/g,'');return p==='notpublishing'||p==='none'||p==='low'||p===''}
+function isPubHigh(v){var p=(v||'').toLowerCase();return p.includes('not')||p.includes('none')||p===''}
 msalInstance.handleRedirectPromise().then(function(r){if(r){accessToken=r.accessToken;go()}else{var a=msalInstance.getAllAccounts();if(a.length>0)msalInstance.acquireTokenSilent({scopes:loginRequest.scopes,account:a[0]}).then(function(t){accessToken=t.accessToken;go()}).catch(function(){})}}).catch(function(e){console.error(e)});
 document.getElementById('loginBtn').addEventListener('click',function(){msalInstance.loginRedirect(loginRequest)});
 function go(){document.getElementById('loginScreen').style.display='none';document.getElementById('dashboard').style.display='block';fetchData();fetchCust();fetchTxn();startAR()}
@@ -216,6 +218,15 @@ function pTXL(buf){var wb=XLSX.read(buf,{type:'array',cellDates:true});
   var ws=wb.Sheets['Transaction List Detail']||wb.Sheets[wb.SheetNames[0]];
   var rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
   console.log('Txn rows:',rows.length,rows.length>0?Object.keys(rows[0]):'no data');
+  // If first row has no recognized columns, try header:1 approach
+  if(rows.length>0&&!rows[0]['Customer']&&!rows[0]['customer']&&!rows[0]['Date']&&!rows[0]['date']){
+    console.log('Headers not found in row 0, trying header:1');
+    var rawRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    // Find header row (first row with 'Customer' or 'Date' in it)
+    var hdrIdx=-1;for(var ri=0;ri<Math.min(rawRows.length,10);ri++){var rStr=rawRows[ri].join(' ').toLowerCase();if(rStr.includes('customer')||rStr.includes('date')){hdrIdx=ri;break}}
+    if(hdrIdx>=0){var hdrs=rawRows[hdrIdx].map(function(h){return String(h||'').trim()});console.log('Found headers at row',hdrIdx,':',hdrs);
+      rows=[];for(var ri=hdrIdx+1;ri<rawRows.length;ri++){var o={};hdrs.forEach(function(h,i){o[h]=rawRows[ri][i]!==undefined?rawRows[ri][i]:''});rows.push(o)}
+      console.log('Re-parsed:',rows.length,'rows',rows.length>0?Object.keys(rows[0]):'')}}
   T=rows.map(function(r){
     var cust=r['Customer']||r['customer']||'';var date=r['Date']||r['date']||'';
     var type=r['Transaction type']||r['Transaction Type']||r['Type']||'';
@@ -226,13 +237,21 @@ function pTXL(buf){var wb=XLSX.read(buf,{type:'array',cellDates:true});
   // Sheet 2: AR Aging
   var arSheet=wb.Sheets['AR Aging']||wb.Sheets['AR aging']||null;
   if(arSheet){var arRows=XLSX.utils.sheet_to_json(arSheet,{defval:'',raw:false});
-    AR=arRows.map(function(r){return{name:(r['Customer Name']||r['Customer']||'').trim(),current:parseFloat(r['Current'])||0,d1_30:parseFloat(r['1 - 30']||r['1-30'])||0,d31_60:parseFloat(r['31 - 60']||r['31-60'])||0,d61_90:parseFloat(r['61 - 90']||r['61-90'])||0,d91:parseFloat(r['91 And Over']||r['91 and Over']||r['91+'])||0,total:parseFloat(r['Total'])||0}}).filter(function(r){return r.name&&r.total!==0});
+    if(arRows.length>0&&!arRows[0]['Customer Name']&&!arRows[0]['Current']){
+      var arRaw=XLSX.utils.sheet_to_json(arSheet,{header:1,defval:''});
+      var ahi=-1;for(var ri=0;ri<Math.min(arRaw.length,10);ri++){var rs=arRaw[ri].join(' ').toLowerCase();if(rs.includes('customer')&&rs.includes('current')){ahi=ri;break}}
+      if(ahi>=0){var ah=arRaw[ahi].map(function(h){return String(h||'').trim()});console.log('AR headers:',ah);arRows=[];for(var ri=ahi+1;ri<arRaw.length;ri++){var o={};ah.forEach(function(h,i){o[h]=arRaw[ri][i]!==undefined?arRaw[ri][i]:''});arRows.push(o)}}}
+    AR=arRows.map(function(r){return{name:(r['Customer Name']||r['Customer']||r['Name']||'').trim(),current:parseFloat(r['Current'])||0,d1_30:parseFloat(r['1 - 30']||r['1-30']||r['1 to 30'])||0,d31_60:parseFloat(r['31 - 60']||r['31-60']||r['31 to 60'])||0,d61_90:parseFloat(r['61 - 90']||r['61-90']||r['61 to 90'])||0,d91:parseFloat(r['91 And Over']||r['91 and Over']||r['91+']||r['91 and over'])||0,total:parseFloat(r['Total']||r['TOTAL'])||0}}).filter(function(r){return r.name&&r.total!==0});
     console.log('AR parsed:',AR.length)}
   // Sheet 3: Sales by Product/Service
   var spSheet=wb.Sheets['Sales by Product']||wb.Sheets['Sales by Product Service']||wb.Sheets['Sales by Product/Service']||null;
   if(!spSheet){wb.SheetNames.forEach(function(sn){if(sn.toLowerCase().includes('sales')&&!spSheet)spSheet=wb.Sheets[sn]})}
   if(spSheet){var spRows=XLSX.utils.sheet_to_json(spSheet,{defval:'',raw:false});
-    SP=spRows.map(function(r){return{product:(r['Product/Service']||r['Product']||r['Service']||'').trim(),qty:parseFloat(r['Quantity']||r['Qty'])||0,amount:parseFloat(r['Amount'])||0,pctSales:parseFloat(r['% of Sales']||r['% Sales'])||0,avgPrice:parseFloat(r['Avg Price']||r['Average Price'])||0,cogs:parseFloat(r['COGS'])||0,grossMargin:parseFloat(r['Gross Margin'])||0,grossMarginPct:parseFloat(r['Gross Margin %']||r['Margin %'])||0}}).filter(function(r){return r.product});
+    if(spRows.length>0&&!spRows[0]['Product/Service']&&!spRows[0]['Product']&&!spRows[0]['Quantity']){
+      var spRaw=XLSX.utils.sheet_to_json(spSheet,{header:1,defval:''});
+      var shi=-1;for(var ri=0;ri<Math.min(spRaw.length,10);ri++){var rs=spRaw[ri].join(' ').toLowerCase();if(rs.includes('product')||rs.includes('quantity')){shi=ri;break}}
+      if(shi>=0){var sh=spRaw[shi].map(function(h){return String(h||'').trim()});console.log('Sales headers:',sh);spRows=[];for(var ri=shi+1;ri<spRaw.length;ri++){var o={};sh.forEach(function(h,i){o[h]=spRaw[ri][i]!==undefined?spRaw[ri][i]:''});spRows.push(o)}}}
+    SP=spRows.map(function(r){return{product:(r['Product/Service']||r['Product']||r['Service']||r['Product/service']||'').trim(),qty:parseFloat(r['Quantity']||r['Qty'])||0,amount:parseFloat(r['Amount'])||0,pctSales:parseFloat(r['% of Sales']||r['% Sales']||r['Pct of Sales'])||0,avgPrice:parseFloat(r['Avg Price']||r['Average Price']||r['Avg price'])||0,cogs:parseFloat(r['COGS'])||0,grossMargin:parseFloat(r['Gross Margin']||r['Gross margin'])||0,grossMarginPct:parseFloat(r['Gross Margin %']||r['Margin %']||r['Gross Margin%']||r['Gross margin %'])||0}}).filter(function(r){return r.product});
     console.log('Sales parsed:',SP.length)}
   // Sheet 4: Client ID Mapping (customer contact + open balance)
   var clSheet=wb.Sheets['Client ID Mapping']||null;
