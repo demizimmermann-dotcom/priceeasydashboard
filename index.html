@@ -157,7 +157,7 @@ var loginRequest={scopes:["https://priceeasy1.sharepoint.com/.default"]};
 var msalInstance=new msal.PublicClientApplication(msalConfig);var accessToken=null;
 var SITE='https://priceeasy1.sharepoint.com/sites/AccountingFinance',GUID='47f480c2-eb0f-4408-b62a-b0b3d85d88e4';
 var CUST_KNOWN_PATH='/Customer Master/Customer Master and Tracker (All Teams).xlsx',CUST_FILE_GUID='6b85d56a-1ad8-4dac-a1b4-6466ca6a4f80';
-var D=[],C=[],T=[],AR=[],SP=[],curTab='exec',sF='all',rF='all',aeF='all',csmF='all',_drillData=null;
+var D=[],C=[],T=[],AR=[],SP=[],CL2=[],curTab='exec',sF='all',rF='all',aeF='all',csmF='all',_drillData=null;
 function normName(n){return(n||'').toLowerCase().replace(/[,.]|\b(inc|llc|ltd|corp|co|company|the)\b/gi,'').replace(/\s+/g,' ').trim()}
 msalInstance.handleRedirectPromise().then(function(r){if(r){accessToken=r.accessToken;go()}else{var a=msalInstance.getAllAccounts();if(a.length>0)msalInstance.acquireTokenSilent({scopes:loginRequest.scopes,account:a[0]}).then(function(t){accessToken=t.accessToken;go()}).catch(function(){})}}).catch(function(e){console.error(e)});
 document.getElementById('loginBtn').addEventListener('click',function(){msalInstance.loginRedirect(loginRequest)});
@@ -232,6 +232,12 @@ function pTXL(buf){var wb=XLSX.read(buf,{type:'array',cellDates:true});
   if(spSheet){var spRows=XLSX.utils.sheet_to_json(spSheet,{defval:'',raw:false});
     SP=spRows.map(function(r){return{product:(r['Product/Service']||r['Product']||r['Service']||'').trim(),qty:parseFloat(r['Quantity']||r['Qty'])||0,amount:parseFloat(r['Amount'])||0,pctSales:parseFloat(r['% of Sales']||r['% Sales'])||0,avgPrice:parseFloat(r['Avg Price']||r['Average Price'])||0,cogs:parseFloat(r['COGS'])||0,grossMargin:parseFloat(r['Gross Margin'])||0,grossMarginPct:parseFloat(r['Gross Margin %']||r['Margin %'])||0}}).filter(function(r){return r.product});
     console.log('Sales parsed:',SP.length)}
+  // Sheet 4: Client ID Mapping (customer contact + open balance)
+  var clSheet=wb.Sheets['Client ID Mapping']||null;
+  if(!clSheet){wb.SheetNames.forEach(function(sn){if(sn.toLowerCase().includes('client id')&&!clSheet)clSheet=wb.Sheets[sn]})}
+  if(clSheet){var clRows=XLSX.utils.sheet_to_json(clSheet,{defval:'',raw:false});
+    CL2=clRows.map(function(r){return{name:(r['Name']||'').trim(),company:(r['Company name']||r['Company Name']||'').trim(),address:(r['Street Address']||'').trim(),city:(r['City']||'').trim(),state:(r['State']||'').trim(),zip:(r['Zip']||'').trim(),phone:(r['Phone']||'').trim(),email:(r['Email']||'').trim(),custType:(r['Customer type']||r['Customer Type']||'').trim(),clientId:String(r['Client ID']||r['ClientID']||'').trim(),openBal:parseFloat(r['Open balance']||r['Open Balance'])||0}}).filter(function(r){return r.name||r.clientId});
+    console.log('Client mapping parsed:',CL2.length)}
 }
 // Transaction join: match T records to D records via clientId or normalized name
 function getTxn(clientId,clientName){
@@ -242,6 +248,11 @@ function getTxn(clientId,clientName){
   });return results}
 function getTxnForAll(items){var all=[];items.forEach(function(d){getTxn(d.clientId,d.client).forEach(function(t){all.push(t)})});return all}
 function txnSummary(txns){var inv=0,pay=0,cm=0;txns.forEach(function(t){var tt=t.type.toLowerCase();if(tt.includes('invoice'))inv+=t.amount;else if(tt.includes('payment'))pay+=Math.abs(t.amount);else if(tt.includes('credit'))cm+=Math.abs(t.amount)});return{invoiced:inv,paid:pay,credits:cm,net:inv-pay-cm,collectionRate:inv>0?Math.round(pay/inv*100):0}}
+
+// Customer contact lookup
+var _cl2Map=null;
+function cl2Map(){if(!_cl2Map||_cl2Map._l!==CL2.length){_cl2Map={_l:CL2.length};CL2.forEach(function(c){if(c.clientId)_cl2Map[c.clientId.toLowerCase()]=c;if(c.name)_cl2Map['n_'+normName(c.name)]=c})}return _cl2Map}
+function getCL2(clientId,clientName){if(!CL2.length)return null;var m=cl2Map();var k=String(clientId||'').trim().toLowerCase();if(k&&m[k])return m[k];var nk='n_'+normName(clientName);return m[nk]||null}
 
 // ═══ JOIN & HELPERS ═══
 var _m=null;function cm(){if(!_m||_m._l!==C.length){_m={_l:C.length};C.forEach(function(c){if(c.custId)_m[c.custId.toLowerCase()]=c})}return _m}
@@ -282,7 +293,8 @@ function rExec(){
     card('Active POCs',activePocs.length,pocs.length+' total','orange','poc-active'),
     card('In Implementation',implProg.length,'Clients in progress','green','impl-inprogress'),
     card('Renewals ≤30d',up.length,$(sv(up))+' ARR','red','ren-0-30'),
-    card('Revenue at Risk',$(riskARR),'Churn flagged','rose','ren-risk-all')
+    card('Revenue at Risk',$(riskARR),'Churn flagged','rose','ren-risk-all'),
+    CL2.length?card('Open Balance',$(CL2.reduce(function(s,c){return s+c.openBal},0)),CL2.filter(function(c){return c.openBal>0}).length+' clients with balance','orange','cl2-openbal'):''
   ].join('');
   // Mini charts
   var scopes=[...new Set(all.map(function(d){return d.scope}))];var sMx=1;var sData={};scopes.forEach(function(s){var cnt=all.filter(function(d){return d.scope===s&&inR(d.effectiveDate,y)}).length;sData[s]=cnt;if(cnt>sMx)sMx=cnt});
@@ -411,6 +423,7 @@ function rRen(){
     else if(cs&&isPubRisk(cs.pub)){risks.push('Low Publishing');score+=2}
     if(d.notes&&d.notes.toLowerCase().match(/churn|cancel|without notice/)){risks.push('Churn in notes');score+=3}
     if(cs&&cs.churn>=7){risks.push('Churn score: '+cs.churn.toFixed(1));score+=2}
+    var cl2=getCL2(d.clientId,d.client);if(cl2&&cl2.openBal>5000){risks.push('Open bal: '+$(cl2.openBal));score+=2}
     if(du(d.endDate)<=30)score+=1;
     if(score>0)riskClients.push({d:d,cs:cs,risks:risks,score:score,level:score>=5?'high':score>=3?'med':'low'})
   });
@@ -443,9 +456,9 @@ function rRen(){
   // Table
   document.getElementById('renFilters').innerHTML=[{k:'all',l:'All'},{k:'0-30',l:'≤30d'},{k:'31-60',l:'31–60'},{k:'61-90',l:'61–90'},{k:'90+',l:'90+'}].map(function(b){return'<button class="fb'+(rF===b.k?' on':'')+'" data-rf="'+b.k+'">'+b.l+'</button>'}).join('');
   var filtered=rF==='all'?up:up.filter(function(d){return bk(d.endDate)===rF});filtered.sort(function(a,b){return du(a.endDate)-du(b.endDate)});
-  document.getElementById('renTh').innerHTML='<tr><th>Client</th><th>Scope</th><th>Term</th><th>Auto</th><th>End</th><th>Days</th><th>Pub</th><th>ARR</th><th>Risk</th></tr>';
-  document.getElementById('renTb').innerHTML=filtered.slice(0,80).map(function(d){var x=du(d.endDate),u=x<=30?'red':x<=60?'amber':x<=90?'blue':'green';var cs=gc(d),pub=cs?cs.pub:'—',pubCol=isPubHigh(pub)?'red':isPubRisk(pub)&&!isPubHigh(pub)?'amber':'green';var rc=riskClients.find(function(r){return r.d.id===d.id});
-    return'<tr data-id="'+d.id+'"><td>'+d.client+'</td><td><span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span></td><td>'+d.term+'</td><td><span class="bd bd-'+(d.autoRenewal==='Annual'?'green':'orange')+'">'+(d.autoRenewal||'—')+'</span></td><td>'+fd(d.endDate)+'</td><td><span class="bd bd-'+u+'">'+x+'d</span></td><td><span class="bd bd-'+pubCol+'">'+pub+'</span></td><td>'+$(d.value)+'</td><td>'+(rc?'<span class="bd bd-'+(rc.level==='high'?'red':'amber')+'">'+rc.score+'pt</span>':'—')+'</td></tr>'}).join('')||'<tr><td colspan="9"><div class="empty">No renewals.</div></td></tr>';
+  document.getElementById('renTh').innerHTML='<tr><th>Client</th><th>Scope</th><th>Term</th><th>Auto</th><th>End</th><th>Days</th><th>Pub</th><th>ARR</th><th>Open Bal</th><th>Risk</th></tr>';
+  document.getElementById('renTb').innerHTML=filtered.slice(0,80).map(function(d){var x=du(d.endDate),u=x<=30?'red':x<=60?'amber':x<=90?'blue':'green';var cs=gc(d),pub=cs?cs.pub:'—',pubCol=isPubHigh(pub)?'red':isPubRisk(pub)&&!isPubHigh(pub)?'amber':'green';var rc=riskClients.find(function(r){return r.d.id===d.id});var cl2=getCL2(d.clientId,d.client);var ob=cl2?cl2.openBal:0;
+    return'<tr data-id="'+d.id+'"><td>'+d.client+'</td><td><span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span></td><td>'+d.term+'</td><td><span class="bd bd-'+(d.autoRenewal==='Annual'?'green':'orange')+'">'+(d.autoRenewal||'—')+'</span></td><td>'+fd(d.endDate)+'</td><td><span class="bd bd-'+u+'">'+x+'d</span></td><td><span class="bd bd-'+pubCol+'">'+pub+'</span></td><td>'+$(d.value)+'</td><td>'+(ob>0?'<span class="bd bd-'+(ob>5000?'red':'amber')+'">'+$(ob)+'</span>':'—')+'</td><td>'+(rc?'<span class="bd bd-'+(rc.level==='high'?'red':'amber')+'">'+rc.score+'pt</span>':'—')+'</td></tr>'}).join('')||'<tr><td colspan="10"><div class="empty">No renewals.</div></td></tr>';
 }
 // ═══ TAB 5: ACTUALS ═══
 function rActuals(){
@@ -506,8 +519,9 @@ function rActuals(){
 }
 
 // ═══ DRILLS + EXPORT ═══
-function drillItem(id){var d;D.forEach(function(x){if(x.id===id)d=x});if(!d)return;var cs=gc(d);document.getElementById('drillT').textContent=d.client;_drillData=null;document.getElementById('exportBtn').style.display='none';
-  document.getElementById('drillB').innerHTML='<div class="detail-grid">'+dI('Order',d.title)+dI('Client',d.client)+dI('Client ID',d.clientId)+dI('AE',cs?cs.ae:'—')+dI('CSM',cs?cs.csm:'—')+dI('Scope','<span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span>')+dI('Type',d.clientType)+dI('Status','<span class="bd bd-'+sc(d.status)+'">'+d.status+'</span>')+dI('Term',d.term)+dI('Effective',fd(d.effectiveDate))+dI('End',fd(d.endDate))+dI('Days Left',d.endDate?du(d.endDate)+'d':'—')+dI('Auto-Renew',d.autoRenewal)+dI('Pilot',d.pilot)+(d.pilot==='Yes'?dI('POC End',fd(d.pocEnd))+dI('POC Status',d.pocStatus)+dI('POC Cost',$(d.pocTotalCost)):'')+dI('ARR',$(d.value))+dI('Equipment',$(d.equipment))+dI('Sites',''+d.siteQty)+'</div>'+(d.notes?'<div style="margin-top:10px"><div style="font-size:9px;color:var(--t3);margin-bottom:3px">NOTES</div><div style="font-size:11px;color:var(--t2)">'+d.notes+'</div></div>':'');
+function drillItem(id){var d;D.forEach(function(x){if(x.id===id)d=x});if(!d)return;var cs=gc(d);var cl2=getCL2(d.clientId,d.client);document.getElementById('drillT').textContent=d.client;_drillData=null;document.getElementById('exportBtn').style.display='none';
+  var contactHtml=cl2?'<div style="margin-bottom:14px;padding:10px 14px;background:var(--card-a);border:1px solid var(--bdr);border-radius:8px"><div style="font-size:9px;color:var(--t3);text-transform:uppercase;font-weight:600;margin-bottom:6px">Contact Info</div><div style="font-size:11px;color:var(--t2)">'+(cl2.email?'📧 '+cl2.email+'<br>':'')+(cl2.phone?'📞 '+cl2.phone+'<br>':'')+(cl2.address?'📍 '+cl2.address+', '+cl2.city+' '+cl2.state+' '+cl2.zip+'<br>':'')+(cl2.openBal?'💰 Open Balance: <strong style="color:'+(cl2.openBal>5000?'var(--red)':'var(--t1)')+'">'+$(cl2.openBal)+'</strong>':'')+'</div></div>':'';
+  document.getElementById('drillB').innerHTML=contactHtml+'<div class="detail-grid">'+dI('Order',d.title)+dI('Client',d.client)+dI('Client ID',d.clientId)+dI('AE',cs?cs.ae:'—')+dI('CSM',cs?cs.csm:'—')+dI('Scope','<span class="bd bd-'+bc(d.scope)+'">'+d.scope+'</span>')+dI('Type',d.clientType)+dI('Status','<span class="bd bd-'+sc(d.status)+'">'+d.status+'</span>')+dI('Term',d.term)+dI('Effective',fd(d.effectiveDate))+dI('End',fd(d.endDate))+dI('Days Left',d.endDate?du(d.endDate)+'d':'—')+dI('Auto-Renew',d.autoRenewal)+dI('Pilot',d.pilot)+(d.pilot==='Yes'?dI('POC End',fd(d.pocEnd))+dI('POC Status',d.pocStatus)+dI('POC Cost',$(d.pocTotalCost)):'')+dI('ARR',$(d.value))+dI('Equipment',$(d.equipment))+dI('Sites',''+d.siteQty)+'</div>'+(d.notes?'<div style="margin-top:10px"><div style="font-size:9px;color:var(--t3);margin-bottom:3px">NOTES</div><div style="font-size:11px;color:var(--t2)">'+d.notes+'</div></div>':'');
   document.getElementById('drillMo').classList.add('open')}
 function drillCust(cid){var c;C.forEach(function(x){if(x.custId===cid)c=x});if(!c)return;_drillData=null;document.getElementById('exportBtn').style.display='none';document.getElementById('drillT').textContent=c.name;
   document.getElementById('drillB').innerHTML='<div class="detail-grid">'+dI('ID',c.custId)+dI('AE',c.ae)+dI('CSM',c.csm)+dI('Stage',c.stage)+dI('Health',c.health)+dI('Publishing',c.pub)+dI('Tickets',''+c.tickets)+dI('Active St.',c.actSt+'/'+c.totSt)+dI('Initiation',fd(c.init))+dI('End',fd(c.iEnd))+dI('Impl Days',c.iDays!==null?c.iDays+'d':'In progress')+dI('MRR Jan',$(c.mrrJan))+dI('Churn',c.churn.toFixed(1))+dI('Upsell',c.upsell.toFixed(1))+dI('RAG',c.rag)+dI('Contract',fd(c.cDate))+'</div>'+(c.update?'<div style="margin-top:8px"><div style="font-size:9px;color:var(--t3)">UPDATE</div><div style="font-size:11px;color:var(--t2)">'+c.update+'</div></div>':'');
@@ -581,6 +595,7 @@ function handleDrill(key){
   if(key.indexOf('actltype-')===0){var type=decodeURIComponent(key.replace('actltype-',''));showTxnDrill('Type: '+type,T.filter(function(t){return t.type===type}));return}
   if(key.indexOf('actlcred-')===0){var cust=decodeURIComponent(key.replace('actlcred-',''));showTxnDrill('Credits: '+cust,T.filter(function(t){return t.customer===cust&&t.type.toLowerCase().includes('credit')}));return}
   if(key.indexOf('araging-')===0){var name=decodeURIComponent(key.replace('araging-',''));var r=AR.find(function(a){return a.name===name});if(r){document.getElementById('drillT').textContent='AR: '+name;document.getElementById('drillB').innerHTML='<div class="detail-grid">'+dI('Current',$(r.current))+dI('1-30 Days',$(r.d1_30))+dI('31-60 Days',$(r.d31_60))+dI('61-90 Days',$(r.d61_90))+dI('91+ Days',$(r.d91))+dI('Total',$(r.total))+'</div>';document.getElementById('drillMo').classList.add('open')}return}
+  if(key==='cl2-openbal'&&CL2.length){var withBal=CL2.filter(function(c){return c.openBal>0}).sort(function(a,b){return b.openBal-a.openBal});_drillData={type:'txn',items:[],title:'Open Balances'};document.getElementById('exportBtn').style.display='inline-block';document.getElementById('drillT').textContent='Open Balances ('+withBal.length+' clients)';var tot=0;withBal.forEach(function(c){tot+=c.openBal});var h='<div style="margin-bottom:10px;font-size:11px;color:var(--t2)">Total: <strong style="color:var(--red)">'+$(tot)+'</strong></div><div class="tw"><table><thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Open Balance</th></tr></thead><tbody>';withBal.forEach(function(c){h+='<tr><td>'+c.name+'</td><td>'+c.company+'</td><td>'+c.email+'</td><td>'+c.phone+'</td><td><span class="bd bd-'+(c.openBal>10000?'red':c.openBal>5000?'amber':'green')+'">'+$(c.openBal)+'</span></td></tr>'});h+='</tbody></table></div>';document.getElementById('drillB').innerHTML=h;document.getElementById('drillMo').classList.add('open');return}
 }
 
 // ═══ EVENTS ═══
@@ -599,9 +614,9 @@ document.addEventListener('click',function(e){
   if(e.target.id==='drillX'||(e.target.classList.contains('mo')&&e.target.id==='drillMo')){document.getElementById('drillMo').classList.remove('open');return}
 });
 document.addEventListener('change',function(e){if(e.target.id==='aeFilter'){aeF=e.target.value;rAct();rExec()}if(e.target.id==='csmFilter'){csmF=e.target.value;rAct();rExec()}});
-document.getElementById('refBtn').addEventListener('click',function(){var b=document.getElementById('refBtn');b.classList.add('spin');_m=null;Promise.all([fetchData(),fetchCust(),fetchTxn()]).then(function(){setTimeout(function(){b.classList.remove('spin')},600);nR=Date.now()+RI})});
+document.getElementById('refBtn').addEventListener('click',function(){var b=document.getElementById('refBtn');b.classList.add('spin');_m=null;_cl2Map=null;Promise.all([fetchData(),fetchCust(),fetchTxn()]).then(function(){setTimeout(function(){b.classList.remove('spin')},600);nR=Date.now()+RI})});
 var RI=5*60*1000,nR=Date.now()+RI;
-function startAR(){setInterval(function(){var b=document.getElementById('refBtn');b.classList.add('spin');_m=null;Promise.all([fetchData(),fetchCust(),fetchTxn()]).then(function(){setTimeout(function(){b.classList.remove('spin')},600);nR=Date.now()+RI})},RI);setInterval(function(){var s=Math.max(0,Math.round((nR-Date.now())/1000)),m=Math.floor(s/60),ss=s%60;document.getElementById('timer').textContent='Updated '+new Date().toLocaleTimeString()+' · next '+m+':'+(ss<10?'0':'')+ss},1000)}
+function startAR(){setInterval(function(){var b=document.getElementById('refBtn');b.classList.add('spin');_m=null;_cl2Map=null;Promise.all([fetchData(),fetchCust(),fetchTxn()]).then(function(){setTimeout(function(){b.classList.remove('spin')},600);nR=Date.now()+RI})},RI);setInterval(function(){var s=Math.max(0,Math.round((nR-Date.now())/1000)),m=Math.floor(s/60),ss=s%60;document.getElementById('timer').textContent='Updated '+new Date().toLocaleTimeString()+' · next '+m+':'+(ss<10?'0':'')+ss},1000)}
 </script>
 </body>
 </html>
