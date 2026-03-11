@@ -4,19 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Progress Scope Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fraunces:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#0B0F1A;--card:#121829;--card-h:#1A2238;--card-a:#0F1525;--bdr:#1E2A45;--bdr-l:#2A3A5C;--t1:#E8ECF4;--t2:#8896B3;--t3:#5A6A8A;--blue:#4A90E2;--cyan:#38BDF8;--green:#34D399;--amber:#FBBF24;--rose:#F472B6;--violet:#A78BFA;--orange:#FB923C;--red:#EF4444;--r:12px}
-*{margin:0;padding:0;box-sizing:border-box}body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 10%,rgba(74,144,226,.06)0,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(56,189,248,.04)0,transparent 60%);pointer-events:none;z-index:0}
 .app{position:relative;z-index:1}.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:20px;text-align:center;padding:40px}
 .login-screen h1{font-family:'Fraunces',serif;font-size:32px;font-weight:800;background:linear-gradient(135deg,var(--t1),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .login-screen p{color:var(--t2);font-size:14px;max-width:400px}
 .login-btn{background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;border:none;padding:14px 36px;border-radius:8px;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s}
 .login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(56,189,248,.3)}
-.banner{background:linear-gradient(135deg,#1a1a2e,#16213e);border-bottom:1px solid var(--bdr);padding:10px 32px;display:flex;align-items:center;gap:12px;font-size:13px;color:var(--t2);flex-wrap:wrap}
+.banner{background:linear-gradient(90deg,rgba(26,26,46,.9),rgba(22,33,62,.9));border-bottom:1px solid var(--bdr);padding:6px 32px;display:flex;align-items:center;gap:12px;font-size:11px;color:var(--t3);flex-wrap:wrap}
 .banner code{padding:2px 8px;border-radius:4px;font-size:12px}.banner code.ok{background:rgba(52,211,153,.15);color:var(--green)}.banner code.err{background:rgba(239,68,68,.15);color:var(--red)}.banner code.warn{background:rgba(251,191,36,.15);color:var(--amber)}
 .hdr{padding:20px 40px 10px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px}
 .hdr h1{font-family:'Fraunces',serif;font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--t1),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -25,12 +25,16 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .rbtn:hover{border-color:var(--blue);color:var(--t1)}.rbtn.spin svg{animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
 .ts{font-size:11px;color:var(--t3)}
 .tabs{display:flex;margin:0 40px;border-bottom:1px solid var(--bdr);overflow-x:auto;gap:0}
-.tab{padding:9px 16px;font-size:12px;font-weight:600;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;user-select:none;white-space:nowrap}
-.tab:hover{color:var(--t2)}.tab.on{color:var(--cyan);border-bottom-color:var(--cyan)}
+.tab{padding:10px 18px;font-size:11px;font-weight:600;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;user-select:none;white-space:nowrap;letter-spacing:.3px}
+.tab:hover{color:var(--t2);background:rgba(56,189,248,.03)}.tab.on{color:var(--cyan);border-bottom-color:var(--cyan);background:rgba(56,189,248,.05)}
 .cnt{padding:18px 40px 36px}.cnt.off{display:none}
+.tab-intro{margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--bdr)}
+.tab-intro-title{font-family:'Fraunces',serif;font-size:20px;font-weight:700;color:var(--t1);margin-bottom:4px}
+.tab-intro-desc{font-size:12px;color:var(--t3);max-width:600px}
+.section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--t3);margin:24px 0 12px;padding-top:8px;border-top:1px solid var(--bdr)}
 .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:18px}
 .sc{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:14px 18px;position:relative;overflow:hidden;cursor:pointer;transition:all .25s}
-.sc:hover{border-color:var(--bdr-l);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.sc:hover{border-color:var(--bdr-l);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4),0 0 0 1px rgba(56,189,248,.08)}
 .sc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
 .sc[data-a=blue]::before{background:var(--blue)}.sc[data-a=cyan]::before{background:var(--cyan)}.sc[data-a=green]::before{background:var(--green)}.sc[data-a=amber]::before{background:var(--amber)}.sc[data-a=rose]::before{background:var(--rose)}.sc[data-a=violet]::before{background:var(--violet)}.sc[data-a=red]::before{background:var(--red)}.sc[data-a=orange]::before{background:var(--orange)}
 .sc .lb{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--t3);margin-bottom:5px}
@@ -46,13 +50,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .fb:hover{border-color:var(--blue);color:var(--t1)}.fb.on{background:rgba(74,144,226,.12);border-color:var(--blue);color:var(--cyan)}
 select.fb{appearance:none;padding-right:20px;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238896B3' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center}
 .tw{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:600px}
-thead th{text-align:left;padding:7px 14px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);background:var(--card-a);border-bottom:1px solid var(--bdr);white-space:nowrap}
+thead th{text-align:left;padding:8px 14px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);background:linear-gradient(180deg,var(--card-a),rgba(15,21,37,.8));border-bottom:2px solid var(--bdr);white-space:nowrap}
 tbody tr{border-bottom:1px solid rgba(30,42,69,.5);cursor:pointer;transition:background .15s}tbody tr:hover{background:var(--card-h)}
 tbody td{padding:8px 14px;font-size:11px;color:var(--t2)}tbody td:first-child{color:var(--t1);font-weight:500}
 .bd{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap}
 .bd-blue{background:rgba(74,144,226,.15);color:var(--blue)}.bd-cyan{background:rgba(56,189,248,.15);color:var(--cyan)}.bd-green{background:rgba(52,211,153,.15);color:var(--green)}.bd-amber{background:rgba(251,191,36,.15);color:var(--amber)}.bd-rose{background:rgba(244,114,182,.15);color:var(--rose)}.bd-red{background:rgba(239,68,68,.15);color:var(--red)}.bd-violet{background:rgba(167,139,250,.15);color:var(--violet)}.bd-orange{background:rgba(251,146,60,.15);color:var(--orange)}
 .cs{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:16px;margin-bottom:18px}
-.cs h2{font-size:13px;font-weight:700;margin-bottom:12px}
+.cs h2{font-size:13px;font-weight:700;margin-bottom:12px;padding-left:10px;border-left:3px solid var(--cyan);line-height:1.3}
 .br{display:flex;align-items:center;gap:10px;margin-bottom:7px}
 .bl{width:110px;font-size:10px;font-weight:500;color:var(--t2);text-align:right;flex-shrink:0}
 .bt{flex:1;height:24px;background:var(--card-a);border-radius:5px;overflow:hidden;cursor:pointer}
@@ -80,7 +84,7 @@ tbody td{padding:8px 14px;font-size:11px;color:var(--t2)}tbody td:first-child{co
 .mo.open{display:flex}
 .ml{background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);width:100%;max-width:960px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.5)}
 .mh{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--bdr);position:sticky;top:0;background:var(--bg);z-index:2}
-.mh h3{font-size:15px;font-weight:700}
+.mh h3{font-size:15px;font-weight:700;font-family:"Fraunces",serif}
 .mc{background:none;border:1px solid var(--bdr);color:var(--t2);width:28px;height:28px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s}
 .mc:hover{border-color:var(--red);color:var(--red)}
 .mb{padding:18px}.mb table{width:100%}.ms{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
@@ -90,10 +94,10 @@ tbody td{padding:8px 14px;font-size:11px;color:var(--t2)}tbody td:first-child{co
 </style>
 </head>
 <body>
-<div class="login-screen" id="loginScreen"><h1>Progress Scope Dashboard</h1><p>Sign in with your Microsoft 365 account to connect to SharePoint.</p><button class="login-btn" id="loginBtn">Sign in with Microsoft</button></div>
+<div class="login-screen" id="loginScreen"><div style="width:56px;height:56px;background:linear-gradient(135deg,var(--cyan),var(--blue));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;font-family:Fraunces,serif;margin-bottom:8px">P</div><h1>Progress Scope Dashboard</h1><p>Sign in with your Microsoft 365 account to access your SharePoint data and team metrics.</p><button class="login-btn" id="loginBtn">Sign in with Microsoft</button><div style="margin-top:20px;font-size:11px;color:var(--t3)">PriceEasy &middot; Accounting & Finance</div></div>
 <div class="app" id="dashboard" style="display:none">
   <div class="banner"><span>⚙️</span><code id="status" class="ok">Connecting…</code><span id="custStatus"></span><span class="ts" id="timer" style="margin-left:auto"></span></div>
-  <div class="hdr"><div><h1>Progress Scope Dashboard</h1><p id="sub">Loading…</p></div><div class="hdr-r"><button class="rbtn" id="refBtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>Refresh</button></div></div>
+  <div class="hdr"><div><div style="display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;background:linear-gradient(135deg,var(--cyan),var(--blue));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;font-family:Fraunces,serif">P</div><div><h1>Progress Scope Dashboard</h1><p id="sub">Loading…</p></div></div></div><div class="hdr-r"><button class="rbtn" id="refBtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>Refresh</button></div></div>
   <div class="tabs">
     <div class="tab on" data-tab="exec">🏠 Scorecard</div>
     <div class="tab" data-tab="action">🎯 Actions</div>
@@ -104,28 +108,30 @@ tbody td{padding:8px 14px;font-size:11px;color:var(--t2)}tbody td:first-child{co
     <div class="tab" data-tab="actuals">💰 Actuals</div>
   </div>
   <!-- EXEC SUMMARY -->
-  <div class="cnt" id="execCnt"><div id="execQuad" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px"></div></div>
-  <div class="cnt off" id="actionCnt"><div class="fg" id="actionFilter" style="margin-bottom:14px"></div><div id="actionLists"></div></div>
+  <div class="cnt" id="execCnt"><div class="tab-intro"><div class="tab-intro-title">Executive Scorecard</div><div class="tab-intro-desc">High-level health metrics across Growth, Retention, Operations, and Revenue.</div></div><div id="execQuad" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px"></div></div>
+  <div class="cnt off" id="actionCnt"><div class="tab-intro"><div class="tab-intro-title">Action Center</div><div class="tab-intro-desc">Priority items requiring attention, organized by urgency. Filter by team member.</div></div><div class="fg" id="actionFilter" style="margin-bottom:14px"></div><div id="actionLists"></div></div>
   <!-- ACTIVITY -->
-  <div class="cnt off" id="activityCnt">
+  <div class="cnt off" id="activityCnt"><div class="tab-intro"><div class="tab-intro-title">Scope Activity</div><div class="tab-intro-desc">New scopes, amendments, and pipeline activity by period, AE, and CSM.</div></div>
     <div class="fg" id="aeCSMFilters" style="margin-bottom:12px"></div>
     <div class="row" id="actSummary"></div>
     <div class="slbl">Conversion Funnel</div><div class="funnel" id="actFunnel"></div>
+    <div class="section-label">Scope Breakdown</div>
     <div class="chart-grid"><div class="cs"><h2>Scopes by Category</h2><div id="actScopeChart"></div></div><div class="cs"><h2>Scopes by AE</h2><div id="actAEChart"></div></div></div>
     <div class="cs"><h2>Scopes by CSM</h2><div id="actCSMScopeChart"></div></div>
     <div class="cs"><h2>CSM Client Counts</h2><div id="actCSMChart"></div></div>
+    <div class="section-label">Data Quality</div>
     <div class="cs"><h2>Matched Clients <span style="font-size:10px;color:var(--t3);font-weight:400" id="matchLabel"></span></h2><div id="actMatchChart"></div></div>
     <div class="ts-wrap"><div class="ts-hdr"><h2><span class="dot" style="background:var(--cyan)"></span> Scopes Detail</h2><div class="fg" id="actFilters"></div></div><div class="tw"><table><thead id="actTh"></thead><tbody id="actTb"></tbody></table></div></div>
   </div>
   <!-- POC -->
-  <div class="cnt off" id="pocCnt">
+  <div class="cnt off" id="pocCnt"><div class="tab-intro"><div class="tab-intro-title">Proof of Concept</div><div class="tab-intro-desc">Active POCs, expiration tracking, conversion rates, and cost-to-ARR analysis.</div></div>
     <div class="row" id="pocSummary"></div>
     <div class="chart-grid"><div class="cs"><h2>POC by Contract Term + ARR</h2><div id="pocTermChart"></div></div><div class="cs"><h2>POC by AE</h2><div id="pocAEChart"></div></div></div>
     <div class="cs"><h2>POC Cost vs ARR Analysis</h2><div id="pocRoiChart"></div></div>
     <div class="ts-wrap"><div class="ts-hdr"><h2><span class="dot" style="background:var(--orange)"></span> POC Detail</h2></div><div class="tw"><table><thead id="pocTh"></thead><tbody id="pocTb"></tbody></table></div></div>
   </div>
   <!-- IMPLEMENTATIONS -->
-  <div class="cnt off" id="implCnt">
+  <div class="cnt off" id="implCnt"><div class="tab-intro"><div class="tab-intro-title">Implementations</div><div class="tab-intro-desc">Client onboarding progress, stage bottlenecks, and at-risk deployments.</div></div>
     <div class="row" id="implSummary"></div>
     <div class="cs"><h2>⚠️ At-Risk Implementations</h2><div id="implRiskSection"></div></div>
     <div class="chart-grid"><div class="cs"><h2>Stage Breakdown</h2><div id="implStageChart"></div></div><div class="cs"><h2>Publishing Activity</h2><div id="implPubChart"></div></div></div>
@@ -133,7 +139,7 @@ tbody td{padding:8px 14px;font-size:11px;color:var(--t2)}tbody td:first-child{co
     <div class="ts-wrap"><div class="ts-hdr"><h2><span class="dot" style="background:var(--green)"></span> Implementation Detail</h2></div><div class="tw"><table><thead id="implTh"></thead><tbody id="implTb"></tbody></table></div></div>
   </div>
   <!-- RENEWALS -->
-  <div class="cnt off" id="renewalsCnt">
+  <div class="cnt off" id="renewalsCnt"><div class="tab-intro"><div class="tab-intro-title">Renewals & Retention</div><div class="tab-intro-desc">Upcoming renewals, churn risk scoring, and month-to-month client management.</div></div>
     <div class="row" id="renSummary"></div>
     <div class="cs"><h2>💰 Revenue at Risk</h2><div id="renRevenueRisk"></div></div>
     <div class="cs"><h2>Retention Scorecard</h2><div id="renScorecard"></div></div>
@@ -141,7 +147,7 @@ tbody td{padding:8px 14px;font-size:11px;color:var(--t2)}tbody td:first-child{co
     <div class="ts-wrap"><div class="ts-hdr"><h2><span class="dot" style="background:var(--amber)"></span> Renewals Detail</h2><div class="fg" id="renFilters"></div></div><div class="tw"><table><thead id="renTh"></thead><tbody id="renTb"></tbody></table></div></div>
   </div>
   <!-- ACTUALS -->
-  <div class="cnt off" id="actualsCnt">
+  <div class="cnt off" id="actualsCnt"><div class="tab-intro"><div class="tab-intro-title">Financial Actuals</div><div class="tab-intro-desc">Revenue health, AR aging, collection metrics, and product profitability from QuickBooks.</div></div>
     <div id="actlHealthScore" style="margin-bottom:18px"></div>
     <div class="row" id="actlSummary"></div>
     <div class="cs"><h2>⚠️ AR Danger Zone <span style="font-size:10px;color:var(--t3);font-weight:400">Overdue AR + Renewing Soon</span></h2><div id="actlDangerZone"></div></div>
