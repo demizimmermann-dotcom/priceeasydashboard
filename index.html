@@ -39,10 +39,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 @keyframes sp{to{transform:rotate(360deg)}}
 
 /* TABS */
-.tabs{display:flex;margin:0 32px;border-bottom:1px solid var(--bdr);overflow-x:auto;gap:0}
-.tab{padding:10px 16px;font-size:11px;font-weight:600;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;user-select:none;white-space:nowrap;letter-spacing:.2px}
-.tab:hover{color:var(--t2)}
-.tab.on{color:var(--t1);border-bottom-color:var(--blue)}
+.tabs{display:flex;margin:0 32px;overflow-x:auto;gap:6px;padding:8px 0 10px}
+.tab{padding:8px 18px;font-size:12px;font-weight:700;color:var(--t3);cursor:pointer;border-radius:6px;border:1px solid transparent;transition:all .15s;user-select:none;white-space:nowrap;letter-spacing:.2px;background:transparent}
+.tab:hover{color:var(--t1);background:var(--card)}
+.tab.on{color:var(--t1);background:var(--card);border-color:var(--bdr);box-shadow:0 1px 4px rgba(0,0,0,.2)}
 
 /* CONTENT */
 .cnt{padding:20px 32px 40px}.cnt.off{display:none}
