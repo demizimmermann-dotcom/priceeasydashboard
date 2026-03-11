@@ -408,10 +408,13 @@ function rExec(){
 }
 
 function rAction(){
+  // Preserve current filter selection
+  var existingFilter=document.getElementById('actionAEFilter');
+  var savedFilter=existingFilter?existingFilter.value:'all';
   var afHtml='<span style="font-size:10px;color:var(--t3);font-weight:600">VIEW AS:</span> <select class="fb" id="actionAEFilter"><option value="all">All Team</option>';
-  if(C.length){var nm={};C.forEach(function(c){if(c.ae)nm[c.ae]=1;if(c.csm)nm[c.csm]=1});Object.keys(nm).sort().forEach(function(n){afHtml+='<option value="'+n+'">'+n+'</option>'})}
+  if(C.length){var nm={};C.forEach(function(c){if(c.ae)nm[c.ae]=1;if(c.csm)nm[c.csm]=1});Object.keys(nm).sort().forEach(function(n){afHtml+='<option value="'+n+'"'+(savedFilter===n?' selected':'')+'>'+n+'</option>'})}
   afHtml+='</select>';document.getElementById('actionFilter').innerHTML=afHtml;
-  var tf=document.getElementById('actionAEFilter')?document.getElementById('actionAEFilter').value:'all';
+  var tf=savedFilter;
   function teamMatch(d){if(tf==='all')return true;var cs=gc(d);return cs&&(cs.ae===tf||cs.csm===tf)}
   function teamMatchC(c){return tf==='all'||(c.ae===tf||c.csm===tf)}
   var h='';
