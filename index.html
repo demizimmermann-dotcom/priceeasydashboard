@@ -637,52 +637,32 @@ function rActuals(){
   T.forEach(function(t){var tt=(t.type||'').toLowerCase();if(tt.includes('invoice'))totalInv+=t.amount;else if(tt.includes('payment'))totalPay+=Math.abs(t.amount);else if(tt.includes('credit'))totalCred+=Math.abs(t.amount)});
   var collRate=totalInv>0?Math.round(totalPay/totalInv*100):0;
   var arTotal=0,arOverdue=0;AR.forEach(function(r){arTotal+=r.total;arOverdue+=r.d31_60+r.d61_90+r.d91});
-  // Collection velocity: match invoices to payments using normalized names AND client IDs
-  var invByKey={},payByKey={};
-  T.forEach(function(t){
-    var tt=(t.type||'').toLowerCase();if(!t.date)return;
-    // Create multiple keys for matching: normalized name, client ID, and original lowercase
-    var keys=[];
-    if(t.customer)keys.push(normName(t.customer));
-    if(t.clientId)keys.push('id_'+t.clientId.toLowerCase());
-    if(t.customer)keys.push(t.customer.toLowerCase().trim());
-    keys.forEach(function(k){
-      if(tt.includes('invoice')){if(!invByKey[k])invByKey[k]=[];invByKey[k].push(t.date)}
-      else if(tt.includes('payment')){if(!payByKey[k])payByKey[k]=[];payByKey[k].push(t.date)}
-    });
-  });
-  var totalCollDays=0,collCount=0,matchedKeys={};
-  Object.keys(invByKey).forEach(function(k){
-    if(!payByKey[k]||matchedKeys[k])return;matchedKeys[k]=true;
-    var invSorted=invByKey[k].sort(function(a,b){return a-b});
-    var paySorted=payByKey[k].sort(function(a,b){return a-b});
-    // Match each invoice to the next payment after it
-    invSorted.forEach(function(invDate){
-      var nextPay=paySorted.find(function(p){return p>=invDate});
-      if(nextPay){var days=Math.round((nextPay-invDate)/864e5);if(days>=0&&days<365){totalCollDays+=days;collCount++}}
-    });
-  });
-  var avgCollDays=collCount>0?Math.round(totalCollDays/collCount):0;
+  // DSO = (Total AR / Total Revenue) x Days in Period
+  var now=new Date(),ytdStart=new Date(now.getFullYear(),0,1);
+  var daysInPeriod=Math.max(Math.round((now-ytdStart)/864e5),1);
+  var dso=totalInv>0?Math.round((arTotal/totalInv)*daysInPeriod):0;
 
   // Revenue Health Score: 0-100 based on collection rate, AR aging, credit memo ratio
   var healthPts=0;
-  healthPts+=Math.min(collRate,100)*0.4; // 40% weight on collection rate
+  healthPts+=Math.min(collRate,100)*0.35; // 35% weight on collection rate
   var arHealthPct=arTotal>0?Math.max(0,100-Math.round(arOverdue/arTotal*100)):100;
-  healthPts+=arHealthPct*0.4; // 40% weight on AR health
+  healthPts+=arHealthPct*0.35; // 35% weight on AR health
+  var dsoPts=dso<=30?100:dso<=45?75:dso<=60?50:dso<=90?25:0;
+  healthPts+=dsoPts*0.15; // 15% weight on DSO
   var credRatio=totalInv>0?totalCred/totalInv*100:0;
-  healthPts+=Math.max(0,100-credRatio*10)*0.2; // 20% weight on low credit memos
+  healthPts+=Math.max(0,100-credRatio*10)*0.15; // 15% weight on low credit memos
   var healthScore=Math.round(healthPts);
   var hCol=healthScore>=75?'var(--green)':healthScore>=50?'var(--amber)':'var(--red)';
 
   // Health Score gauge
-  document.getElementById('actlHealthScore').innerHTML='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:20px;display:flex;align-items:center;gap:30px;flex-wrap:wrap"><div style="text-align:center;min-width:120px"><div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Revenue Health</div><div style="font-family:Fraunces,serif;font-size:48px;font-weight:700;color:'+hCol+'">'+healthScore+'</div><div style="width:100%;height:10px;background:var(--card-a);border-radius:5px;margin-top:6px"><div style="height:100%;border-radius:5px;width:'+healthScore+'%;background:'+hCol+'"></div></div></div><div style="flex:1;display:flex;gap:20px;flex-wrap:wrap"><div style="flex:1;min-width:100px"><div style="font-size:10px;color:var(--t3)">Collection Rate</div><div style="font-size:18px;font-weight:700;color:var(--t1)">'+collRate+'%</div><div style="font-size:9px;color:var(--t3)">'+$(totalPay)+' of '+$(totalInv)+'</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;color:var(--t3)">AR Health</div><div style="font-size:18px;font-weight:700;color:'+(arOverdue>0?'var(--red)':'var(--green)')+'">'+$(arOverdue)+'</div><div style="font-size:9px;color:var(--t3)">overdue of '+$(arTotal)+' total</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;color:var(--t3)">Avg Days to Collect</div><div style="font-size:18px;font-weight:700;color:'+(avgCollDays>45?'var(--red)':avgCollDays>30?'var(--amber)':'var(--green)')+'">'+avgCollDays+'d</div><div style="font-size:9px;color:var(--t3)">from '+collCount+' client pairs</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;color:var(--t3)">Credit Memo Ratio</div><div style="font-size:18px;font-weight:700;color:'+(credRatio>5?'var(--red)':credRatio>2?'var(--amber)':'var(--green)')+'">'+credRatio.toFixed(1)+'%</div><div style="font-size:9px;color:var(--t3)">'+$(totalCred)+' in credits</div></div></div></div>';
+  document.getElementById('actlHealthScore').innerHTML='<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:20px;display:flex;align-items:center;gap:30px;flex-wrap:wrap"><div style="text-align:center;min-width:120px"><div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Revenue Health</div><div style="font-family:Fraunces,serif;font-size:48px;font-weight:700;color:'+hCol+'">'+healthScore+'</div><div style="width:100%;height:10px;background:var(--card-a);border-radius:5px;margin-top:6px"><div style="height:100%;border-radius:5px;width:'+healthScore+'%;background:'+hCol+'"></div></div></div><div style="flex:1;display:flex;gap:20px;flex-wrap:wrap"><div style="flex:1;min-width:100px"><div style="font-size:10px;color:var(--t3)">Collection Rate</div><div style="font-size:18px;font-weight:700;color:var(--t1)">'+collRate+'%</div><div style="font-size:9px;color:var(--t3)">'+$(totalPay)+' of '+$(totalInv)+'</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;color:var(--t3)">AR Health</div><div style="font-size:18px;font-weight:700;color:'+(arOverdue>0?'var(--red)':'var(--green)')+'">'+$(arOverdue)+'</div><div style="font-size:9px;color:var(--t3)">overdue of '+$(arTotal)+' total</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;color:var(--t3)">Days Sales Outstanding</div><div style="font-size:18px;font-weight:700;color:'+(dso>60?'var(--red)':dso>45?'var(--amber)':'var(--green)')+'">'+dso+'d</div><div style="font-size:9px;color:var(--t3)">AR/Revenue x '+daysInPeriod+'d YTD</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;color:var(--t3)">Credit Memo Ratio</div><div style="font-size:18px;font-weight:700;color:'+(credRatio>5?'var(--red)':credRatio>2?'var(--amber)':'var(--green)')+'">'+credRatio.toFixed(1)+'%</div><div style="font-size:9px;color:var(--t3)">'+$(totalCred)+' in credits</div></div></div></div>';
 
   // Summary cards
   document.getElementById('actlSummary').innerHTML=[
     card('Invoiced',$(totalInv),T.filter(function(t){return(t.type||'').toLowerCase().includes('invoice')}).length+' invoices','cyan','actltxn-inv-ytd'),
     card('Collected',$(totalPay),collRate+'% rate','green','actltxn-pay-ytd'),
     card('Open AR',$(arTotal),arOverdue>0?$(arOverdue)+' overdue':'All current','red','actltxn-ar'),
-    card('Avg Collection',avgCollDays+'d','Target: <30d','amber','actltxn-all'),
+    card('DSO',dso+'d','Days Sales Outstanding','amber','actltxn-all'),
     card('Credits',$(totalCred),credRatio.toFixed(1)+'% of invoiced','rose','actltxn-credits')
   ].join('');
 
